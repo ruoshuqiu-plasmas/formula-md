@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file:; font-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>Formula MD</title>
+    <link id="hljsLightTheme" rel="stylesheet" href="../../node_modules/@highlightjs/cdn-assets/styles/github.min.css" />
+    <link id="hljsDarkTheme" rel="stylesheet" href="../../node_modules/@highlightjs/cdn-assets/styles/github-dark.min.css" disabled />
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="mathjax-config.js"></script>
+    <script defer src="../../node_modules/mathjax/es5/tex-chtml-full.js"></script>
+    <script defer src="../../node_modules/markdown-it/dist/markdown-it.min.js"></script>
+    <script defer src="../../node_modules/dompurify/dist/purify.min.js"></script>
+    <script defer src="../../node_modules/@highlightjs/cdn-assets/highlight.min.js"></script>
+    <script defer src="markdown-source-highlighter.js"></script>
+    <script defer src="math-protector.js"></script>
+    <script defer src="editor-state.js"></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <div id="dropOverlay" class="drop-overlay" aria-hidden="true">
+      <div class="drop-card">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" /></svg>
+        <strong>松开以打开文档</strong>
+        <span>支持 .md、.markdown 与 .txt</span>
+      </div>
+    </div>
+
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="drag-region"></div>
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <span>∑</span>
+          </div>
+          <div>
+            <div class="brand-name">Formula MD</div>
+            <div class="brand-tagline">Markdown + LaTeX</div>
+          </div>
+        </div>
+
+        <div class="document-actions">
+          <button id="newButton" class="new-button" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            新建 Markdown
+            <kbd>⌘N</kbd>
+          </button>
+          <button id="openButton" class="open-button" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5h6l2-2h3a2 2 0 0 1 2 2v1M5 18.5h11.2a2 2 0 0 0 1.9-1.4l2-6a1 1 0 0 0-.95-1.3H7a2 2 0 0 0-1.9 1.37l-1.6 4.8a2 2 0 0 0 1.9 2.53Z" /></svg>
+            打开 Markdown
+            <kbd>⌘O</kbd>
+          </button>
+        </div>
+
+        <section id="recentSection" class="sidebar-section recent-section" hidden>
+          <div class="section-label">最近打开</div>
+          <div id="recentList" class="recent-list"></div>
+        </section>
+
+        <section id="outlineSection" class="sidebar-section outline-section" hidden>
+          <div class="section-label">文档目录</div>
+          <nav id="outline" class="outline" aria-label="文档目录"></nav>
+        </section>
+
+        <div class="sidebar-footer">
+          <div class="math-engine">
+            <span class="status-dot"></span>
+            MathJax · 离线
+          </div>
+          <span id="engineStatus">引擎就绪</span>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="toolbar">
+          <div class="document-identity">
+            <div id="documentTitle" class="document-title">未打开文档</div>
+            <button id="revealButton" class="document-path" type="button" hidden></button>
+          </div>
+          <div class="toolbar-actions">
+            <div id="modeControl" class="mode-control" role="group" aria-label="查看模式" hidden>
+              <button id="readModeButton" class="mode-button active" type="button" aria-pressed="true">阅读</button>
+              <button id="editModeButton" class="mode-button" type="button" aria-pressed="false">编辑</button>
+            </div>
+            <button id="saveButton" class="save-button" type="button" title="保存文档 (⌘S)" hidden disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5zM8 4v6h8V4M8 20v-6h8v6" /></svg>
+              <span id="saveButtonText">保存</span>
+            </button>
+            <button id="pdfButton" class="pdf-button" type="button" title="保存为 PDF (⇧⌘S)" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 3.5h8l4 4V20.5H6zM14 3.5v4h4M9 13h6M9 16h4" />
+              </svg>
+              PDF
+            </button>
+            <label id="searchControl" class="search-control" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+              <input id="searchInput" type="search" placeholder="在文档中查找" autocomplete="off" />
+              <span id="searchCount"></span>
+            </label>
+            <button id="themeButton" class="icon-button" type="button" title="切换主题" aria-label="切换主题">
+              <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg>
+              <svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z" /></svg>
+            </button>
+          </div>
+        </header>
+
+        <nav id="tabBar" class="tab-bar" aria-label="打开的文档" hidden>
+          <div id="tabList" class="tab-list" role="tablist"></div>
+          <button id="addTabButton" class="add-tab-button" type="button" title="打开文档 (⌘O)" aria-label="打开新标签页">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+          </button>
+        </nav>
+
+        <div id="documentArea" class="document-area">
+          <section id="editorPanel" class="editor-panel" aria-label="Markdown 源码编辑器" hidden>
+            <header class="editor-header">
+              <span class="editor-label"><span class="editor-dot"></span>Markdown 源码</span>
+              <span id="editorPosition">第 1 行，第 1 列</span>
+            </header>
+            <div class="source-editor-shell">
+              <div class="line-number-gutter" aria-hidden="true"><pre id="lineNumbers">1</pre></div>
+              <div id="sourceEditorStage" class="source-editor-stage">
+                <pre id="sourceHighlight" class="source-highlight" aria-hidden="true"></pre>
+                <textarea
+                  id="sourceEditor"
+                  aria-label="Markdown 原始文本"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  wrap="off"
+                ></textarea>
+              </div>
+            </div>
+          </section>
+
+          <div id="contentScroller" class="content-scroller">
+            <div class="preview-label"><span class="preview-dot"></span>实时预览</div>
+            <section id="welcome" class="welcome">
+              <div class="welcome-visual" aria-hidden="true">
+                <div class="formula-card formula-card-back">\( e^{i\pi}+1=0 \)</div>
+                <div class="formula-card formula-card-front">
+                  <span class="formula-label">THE BEAUTY OF MATH</span>
+                  <span class="hero-formula">∫<sub>−∞</sub><sup>∞</sup> e<sup>−x²</sup> dx = √π</span>
+                  <span class="formula-rule"></span>
+                  <span class="formula-note">Ready for every equation.</span>
+                </div>
+              </div>
+              <h1>让公式完整地呈现</h1>
+              <p>新建或打开一份 Markdown 文档，行内公式、矩阵、编号方程、化学式和自定义宏都会在本机离线排版。</p>
+              <div class="welcome-actions">
+                <button id="welcomeNewButton" class="primary-button" type="button">
+                  新建空白文档
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
+                </button>
+                <button id="welcomeOpenButton" class="secondary-button" type="button">打开现有文档</button>
+              </div>
+              <div id="welcomeRecents" class="welcome-recents"></div>
+              <div class="drop-hint">也可以将文件拖到窗口任意位置</div>
+            </section>
+
+            <article id="article" class="markdown-body" hidden></article>
+          </div>
+        </div>
+
+        <footer id="statusBar" class="status-bar" hidden>
+          <div>
+            <span id="wordCount">0 字</span>
+            <span class="status-separator"></span>
+            <span id="formulaCount">0 个公式</span>
+          </div>
+          <div>
+            <span id="editStatus" hidden>已保存</span>
+            <span id="editStatusSeparator" class="status-separator" hidden></span>
+            <span id="renderStatus"><span class="status-dot"></span>排版完成</span>
+            <span class="status-separator"></span>
+            <span>UTF-8</span>
+            <span class="status-separator"></span>
+            <span>自动刷新</span>
+          </div>
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>
