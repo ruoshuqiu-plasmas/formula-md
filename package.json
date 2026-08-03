@@ -1,6 +1,6 @@
 {
   "name": "formula-md",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "A polished offline Markdown and LaTeX reader for macOS and Windows",
   "main": "src/main.js",
   "author": "Formula MD",

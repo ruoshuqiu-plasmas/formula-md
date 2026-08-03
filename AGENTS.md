@@ -4,7 +4,7 @@
 
 ## 项目概览
 
-Formula MD 是一个面向 macOS 和 Windows 的**离线** Markdown + LaTeX 阅读器/编辑器（Electron 应用，版本 1.5.1）。核心能力：用 MathJax 排版数学公式，并在 Markdown 解析前保护公式源码，避免下划线、星号和反斜杠被 Markdown 语法提前改写。
+Formula MD 是一个面向 macOS 和 Windows 的**离线** Markdown + LaTeX 阅读器/编辑器（Electron 应用，版本 1.5.2）。核心能力：用 MathJax 排版数学公式，并在 Markdown 解析前保护公式源码，避免下划线、星号和反斜杠被 Markdown 语法提前改写。
 
 主要功能：
 

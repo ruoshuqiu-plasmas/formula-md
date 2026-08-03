@@ -44,12 +44,27 @@
       const character = source[cursor];
 
       if (lineStart) {
-        const fenceMatch = source.slice(cursor).match(/^( {0,3})(`{3,}|~{3,})/);
+        const fenceMatch = source.slice(cursor).match(/^( {0,3})(`{3,}|~{3,})([^\n]*)/);
         if (fenceMatch) {
           const marker = fenceMatch[2][0];
           const length = fenceMatch[2].length;
-          if (!fence) fence = { marker, length };
-          else if (fence.marker === marker && length >= fence.length) fence = null;
+          const isOpeningFence = !fence;
+          const isClosingFence =
+            fence && fence.marker === marker && length >= fence.length && /^\s*$/.test(fenceMatch[3]);
+
+          if (isOpeningFence || isClosingFence) {
+            fence = isOpeningFence ? { marker, length } : null;
+            const lineEnd = source.indexOf('\n', cursor);
+            if (lineEnd === -1) {
+              output += source.slice(cursor);
+              cursor = source.length;
+            } else {
+              output += source.slice(cursor, lineEnd + 1);
+              cursor = lineEnd + 1;
+              lineStart = true;
+            }
+            continue;
+          }
         }
       }
 

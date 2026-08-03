@@ -31,6 +31,28 @@ test('leaves formulas inside code spans and fenced code untouched', () => {
   assert.match(result.source, /```tex\n\$x_1\$\n```/);
 });
 
+test('protects formulas between separate fenced code blocks', () => {
+  const input = [
+    '```text',
+    '\\(inside_first_fence\\)',
+    '```',
+    '',
+    'Between \\(\\pi R^2\\) fences.',
+    '',
+    '~~~text',
+    '$inside_second_fence$',
+    '~~~   ',
+    '',
+    'After $x_1$.'
+  ].join('\n');
+  const result = protectMath(input);
+
+  assert.deepEqual(result.math, ['\\(\\pi R^2\\)', '$x_1$']);
+  assert.match(result.source, /\\\(inside_first_fence\\\)/);
+  assert.match(result.source, /\$inside_second_fence\$/);
+  assert.equal(restoreMath(result.source, result.math), input);
+});
+
 test('does not treat common currency text as math', () => {
   const input = 'The price is $5 and the discount is $2. Use $x+2$ for math.';
   const result = protectMath(input);
