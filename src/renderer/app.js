@@ -1,4 +1,19 @@
 const SESSION_KEY = 'formula-md-tab-session-v1';
+const PALETTES = {
+  'arctic-frost': { mode: 'light' },
+  'cloud-saas': { mode: 'light' },
+  'blush-lavender': { mode: 'light' },
+  'lilac-mist': { mode: 'light' },
+  'ibm-blue': { mode: 'light' },
+  'vapor-chrome': { mode: 'light' },
+  'sapphire-ice': { mode: 'light' },
+  'github-dim': { mode: 'dark' },
+  'midnight-indigo': { mode: 'dark' },
+  'linear-violet': { mode: 'dark' },
+  'stripe-violet': { mode: 'dark' },
+  'ultra-violet': { mode: 'dark' }
+};
+const DEFAULT_PALETTE = { light: 'arctic-frost', dark: 'github-dim' };
 
 const state = {
   tabs: new Map(),
@@ -41,6 +56,7 @@ const elements = {
   openButton: document.querySelector('#openButton'),
   outline: document.querySelector('#outline'),
   outlineSection: document.querySelector('#outlineSection'),
+  paletteSelect: document.querySelector('#paletteSelect'),
   pdfButton: document.querySelector('#pdfButton'),
   previewLabel: document.querySelector('.preview-label'),
   recentList: document.querySelector('#recentList'),
@@ -1084,15 +1100,49 @@ function applyAppearance(appearance) {
   window.GlassEffects.refresh();
 }
 
+function applyPalette(paletteId, options = {}) {
+  const palette = PALETTES[paletteId] ? paletteId : DEFAULT_PALETTE.light;
+  localStorage.setItem('formula-md-palette', palette);
+  window.formulaMD.writeSettings({ palette }).catch(() => {});
+  document.documentElement.dataset.palette = palette;
+  if (elements.paletteSelect) elements.paletteSelect.value = palette;
+  if (!options.keepTheme) applyTheme(PALETTES[palette].mode);
+}
+
+function initializePalette(settings = {}) {
+  const stored = localStorage.getItem('formula-md-palette');
+  const remembered = PALETTES[settings.palette] ? settings.palette : stored;
+  const resolvedTheme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+  const palette = PALETTES[remembered] ? remembered : DEFAULT_PALETTE[resolvedTheme];
+  document.documentElement.dataset.palette = palette;
+  if (elements.paletteSelect) elements.paletteSelect.value = palette;
+  if (PALETTES[palette].mode !== resolvedTheme) applyTheme(PALETTES[palette].mode);
+}
+
 function applyTheme(theme) {
   localStorage.setItem('formula-md-theme', theme);
+  window.formulaMD.writeSettings({ theme }).catch(() => {});
   window.formulaMD.setTheme(theme).then(applyAppearance);
 }
 
 function initializeTheme() {
-  const stored = localStorage.getItem('formula-md-theme');
   window.formulaMD.onAppearanceChanged(applyAppearance);
-  window.formulaMD.setTheme(['dark', 'light'].includes(stored) ? stored : 'system').then(applyAppearance);
+  // The settings file wins over renderer storage, which can come up empty on a
+  // cold start; a choice that only exists in localStorage is migrated once.
+  window.formulaMD.readSettings().catch(() => ({})).then((settings) => {
+    const storedPalette = localStorage.getItem('formula-md-palette');
+    const storedTheme = localStorage.getItem('formula-md-theme');
+    if (!settings.palette && PALETTES[storedPalette]) settings.palette = storedPalette;
+    if (!settings.theme && ['dark', 'light'].includes(storedTheme)) settings.theme = storedTheme;
+    if (settings.palette || settings.theme) {
+      window.formulaMD.writeSettings(settings).catch(() => {});
+    }
+    const theme = ['dark', 'light'].includes(settings.theme) ? settings.theme : 'system';
+    return window.formulaMD.setTheme(theme).then((appearance) => {
+      applyAppearance(appearance);
+      initializePalette(settings);
+    });
+  });
 }
 
 async function restoreSession() {
@@ -1134,7 +1184,12 @@ elements.editModeButton.addEventListener('click', () => setEditMode(true));
 elements.saveButton.addEventListener('click', () => saveDocument());
 elements.pdfButton.addEventListener('click', exportPdf);
 elements.themeButton.addEventListener('click', () => {
-  applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+  const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  applyPalette(DEFAULT_PALETTE[nextTheme], { keepTheme: true });
+  applyTheme(nextTheme);
+});
+elements.paletteSelect.addEventListener('change', () => {
+  applyPalette(elements.paletteSelect.value);
 });
 elements.searchInput.addEventListener('input', () => searchDocument(elements.searchInput.value));
 elements.searchInput.addEventListener('keydown', (event) => {

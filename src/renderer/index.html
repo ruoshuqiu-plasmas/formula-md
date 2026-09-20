@@ -12,6 +12,7 @@
     <link id="hljsDarkTheme" rel="stylesheet" href="../../node_modules/@highlightjs/cdn-assets/styles/github-dark.min.css" disabled />
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="glass.css" media="screen" />
+    <link rel="stylesheet" href="themes.css" media="screen" />
     <script defer src="mathjax-config.js"></script>
     <script defer src="../../node_modules/mathjax/es5/tex-chtml-full.js"></script>
     <script defer src="../../node_modules/markdown-it/dist/markdown-it.min.js"></script>
@@ -104,6 +105,20 @@
               <input id="searchInput" type="search" placeholder="在文档中查找" aria-label="在文档中查找" autocomplete="off" />
               <span id="searchCount"></span>
             </label>
+            <select id="paletteSelect" class="palette-select glass-control" title="配色方案" aria-label="配色方案">
+              <option value="arctic-frost">Arctic Frost 极地霜</option>
+              <option value="cloud-saas">Cloud SaaS 云端蓝</option>
+              <option value="blush-lavender">Blush &amp; Lavender 胭粉薰衣草</option>
+              <option value="lilac-mist">Lilac Mist 丁香雾</option>
+              <option value="ibm-blue">IBM Blue 企业蓝</option>
+              <option value="vapor-chrome">Vapor Chrome 蒸汽铬</option>
+              <option value="sapphire-ice">Sapphire Ice 冰晶蓝</option>
+              <option value="github-dim">GitHub Dim 暗夜</option>
+              <option value="midnight-indigo">Midnight Indigo 午夜靛蓝</option>
+              <option value="linear-violet">Linear Violet 线性紫</option>
+              <option value="stripe-violet">Stripe Violet 条纹紫</option>
+              <option value="ultra-violet">Ultra Violet 紫外光</option>
+            </select>
             <button id="themeButton" class="icon-button glass-control" type="button" title="切换主题" aria-label="切换主题">
               <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg>
               <svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z" /></svg>

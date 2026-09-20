@@ -54,6 +54,70 @@ async function rememberFile(filePath) {
   return next;
 }
 
+const SETTINGS_KEYS = ['theme', 'palette'];
+const THEME_VALUES = ['system', 'light', 'dark'];
+// Must list every slug the renderer knows: anything missing here is dropped
+// from settings.json, which would silently un-persist that palette.
+const PALETTE_VALUES = [
+  'arctic-frost',
+  'cloud-saas',
+  'blush-lavender',
+  'lilac-mist',
+  'ibm-blue',
+  'vapor-chrome',
+  'sapphire-ice',
+  'github-dim',
+  'midnight-indigo',
+  'linear-violet',
+  'stripe-violet',
+  'ultra-violet'
+];
+
+function settingsFilePath() {
+  return path.join(app.getPath('userData'), 'settings.json');
+}
+
+async function readStoredSettings() {
+  try {
+    const stored = JSON.parse(await fsPromises.readFile(settingsFilePath(), 'utf8'));
+    return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+  } catch {
+    return {};
+  }
+}
+
+// The renderer's localStorage is not a dependable home for user preferences:
+// on a cold start it can read an empty storage area before Chromium has loaded
+// it, which silently resets every stored choice. This file is written
+// atomically by the main process the moment a preference changes.
+async function performSettingsWrite(patch) {
+  const next = await readStoredSettings();
+  if (patch && typeof patch === 'object') {
+    for (const key of SETTINGS_KEYS) {
+      if (typeof patch[key] === 'string') next[key] = patch[key];
+    }
+  }
+  if (next.theme && !THEME_VALUES.includes(next.theme)) delete next.theme;
+  if (next.palette && !PALETTE_VALUES.includes(next.palette)) delete next.palette;
+  await fsPromises.mkdir(app.getPath('userData'), { recursive: true });
+  const target = settingsFilePath();
+  const pending = `${target}.tmp`;
+  await fsPromises.writeFile(pending, JSON.stringify(next, null, 2), 'utf8');
+  await fsPromises.rename(pending, target);
+  return next;
+}
+
+// Preferences change in bursts (a palette switch also stores its theme), so the
+// read-modify-write cycles are serialised; running them concurrently let two
+// writers share one temporary file and leave a truncated settings.json behind.
+let settingsWriteQueue = Promise.resolve();
+
+function writeStoredSettings(patch) {
+  const write = () => performSettingsWrite(patch);
+  settingsWriteQueue = settingsWriteQueue.then(write, write);
+  return settingsWriteQueue;
+}
+
 function stopWatching(filePath) {
   const resolved = filePath ? path.resolve(filePath) : null;
   if (resolved) {
@@ -530,6 +594,8 @@ ipcMain.handle('appearance:set-theme', (_event, theme) => {
   syncWindowAppearance();
   return windowAppearance();
 });
+ipcMain.handle('settings:read', readStoredSettings);
+ipcMain.handle('settings:write', (_event, patch) => writeStoredSettings(patch));
 ipcMain.handle('document:choose', chooseMarkdownFile);
 ipcMain.handle('document:create', createBlankMarkdownFile);
 ipcMain.handle('document:read', (_event, filePath) => readMarkdownFile(filePath));

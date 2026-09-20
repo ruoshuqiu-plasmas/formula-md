@@ -1,27 +1,27 @@
 /* Screen-only chrome: soft relief under a liquid glass finish.
    Reading, source highlighting and PDF typography stay in styles.css. */
 :root {
-  --bg: #fbfcfd;
+  --bg: #f0f5fa;
   --surface: #ffffff;
   --sidebar: transparent;
-  --text: #242b31;
-  --text-secondary: #596770;
-  --text-tertiary: #6e7b85;
-  --border: #dce3e8;
-  --code-bg: #f0f4f6;
-  --quote-bg: #edf5f3;
-  --toolbar: rgba(229, 238, 242, 0.7);
-  --editor-bg: #f7f9fb;
-  --gutter-bg: #edf1f5;
-  --chrome-base: #e5eef2;
-  --chrome-tint: rgba(229, 238, 242, 0.76);
-  --glass-fill: rgba(229, 238, 242, 0.64);
+  --text: #22303c;
+  --text-secondary: #52667a;
+  --text-tertiary: #8aa0b4;
+  --border: #d6e1eb;
+  --code-bg: #e8f0f8;
+  --quote-bg: #e3eef8;
+  --toolbar: rgba(228, 237, 245, 0.7);
+  --editor-bg: #f7fafd;
+  --gutter-bg: #e7eff7;
+  --chrome-base: #e4edf5;
+  --chrome-tint: rgba(228, 237, 245, 0.76);
+  --glass-fill: rgba(228, 237, 245, 0.64);
   --glass-edge: rgba(255, 255, 255, 0.64);
-  --glass-line: rgba(82, 108, 124, 0.13);
-  --glass-shade: rgba(61, 88, 106, 0.1);
+  --glass-line: rgba(62, 96, 120, 0.13);
+  --glass-shade: rgba(46, 80, 106, 0.1);
   --glass-light: rgba(255, 255, 255, 0.5);
   /* All relief shares a top-left light source and the existing cool gray hue. */
-  --relief-dark: rgba(112, 140, 154, 0.3);
+  --relief-dark: rgba(104, 136, 158, 0.3);
   --relief-light: rgba(255, 255, 255, 0.88);
   --relief-raised: 6px 6px 12px var(--relief-dark), -6px -6px 12px var(--relief-light);
   --relief-hover: 3px 3px 6px var(--relief-dark), -3px -3px 6px var(--relief-light);
@@ -34,27 +34,27 @@
 }
 
 :root[data-theme='dark'] {
-  --bg: #1b2024;
-  --surface: #282f35;
+  --bg: #0d1117;
+  --surface: #161b22;
   --sidebar: transparent;
-  --text: #e6ecf1;
-  --text-secondary: #b1bec8;
-  --text-tertiary: #96a5b1;
-  --border: #39444d;
-  --code-bg: #242d34;
-  --quote-bg: #223530;
-  --toolbar: rgba(40, 47, 53, 0.7);
-  --editor-bg: #1c2329;
-  --gutter-bg: #242c33;
-  --chrome-base: #282f35;
-  --chrome-tint: rgba(40, 47, 53, 0.82);
-  --glass-fill: rgba(40, 47, 53, 0.68);
-  --glass-edge: rgba(226, 244, 255, 0.12);
-  --glass-line: rgba(196, 221, 240, 0.1);
+  --text: #c9d1d9;
+  --text-secondary: #8b949e;
+  --text-tertiary: #6e7681;
+  --border: #30363d;
+  --code-bg: #161b22;
+  --quote-bg: #16202c;
+  --toolbar: rgba(22, 27, 34, 0.7);
+  --editor-bg: #0e131b;
+  --gutter-bg: #131a23;
+  --chrome-base: #161b22;
+  --chrome-tint: rgba(22, 27, 34, 0.82);
+  --glass-fill: rgba(22, 27, 34, 0.68);
+  --glass-edge: rgba(210, 225, 255, 0.12);
+  --glass-line: rgba(180, 200, 220, 0.1);
   --glass-shade: rgba(0, 0, 0, 0.28);
-  --glass-light: rgba(204, 233, 255, 0.12);
-  --relief-dark: rgba(5, 12, 17, 0.5);
-  --relief-light: rgba(77, 91, 102, 0.3);
+  --glass-light: rgba(190, 210, 235, 0.12);
+  --relief-dark: rgba(2, 6, 10, 0.5);
+  --relief-light: rgba(58, 68, 80, 0.3);
 }
 
 .app-shell {

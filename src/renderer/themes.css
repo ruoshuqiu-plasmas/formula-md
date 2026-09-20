@@ -1,0 +1,483 @@
+/* Palette overrides for Formula MD.
+   Loaded last and screen-only so print/PDF styles stay untouched.
+   Each palette binds to a light or dark mode; app.js keeps data-theme
+   and data-palette consistent on <html>. */
+
+/* ============ Light palettes ============ */
+
+:root[data-palette='arctic-frost']:not([data-theme='dark']) {
+  --accent: #2e6b8a;
+  --accent-bright: #4d87a9;
+  --accent-soft: rgba(46, 107, 138, 0.1);
+  --bg: #f0f5fa;
+  --surface: #ffffff;
+  --sidebar: transparent;
+  --sidebar-border: rgba(46, 107, 138, 0.1);
+  --text: #22303c;
+  --text-secondary: #52667a;
+  --text-tertiary: #8aa0b4;
+  --border: #d6e1eb;
+  --code-bg: #e8f0f8;
+  --quote-bg: #e3eef8;
+  --toolbar: rgba(228, 237, 245, 0.7);
+  --editor-bg: #f7fafd;
+  --gutter-bg: #e7eff7;
+  --syntax-text: #333a42;
+  --syntax-muted: #7a828c;
+  --syntax-heading: #2e6b8a;
+  --syntax-keyword: #b4233d;
+  --syntax-string: #25664f;
+  --syntax-number: #175ca3;
+  --syntax-symbol: #9a6700;
+  --syntax-selection: rgba(46, 107, 138, 0.2);
+  --shadow: 0 22px 60px rgba(43, 68, 92, 0.13);
+  --chrome-base: #e4edf5;
+  --chrome-tint: rgba(228, 237, 245, 0.76);
+  --glass-fill: rgba(228, 237, 245, 0.64);
+  --glass-edge: rgba(255, 255, 255, 0.64);
+  --glass-line: rgba(62, 96, 120, 0.13);
+  --glass-shade: rgba(46, 80, 106, 0.1);
+  --glass-light: rgba(255, 255, 255, 0.5);
+  --relief-dark: rgba(104, 136, 158, 0.3);
+  --relief-light: rgba(255, 255, 255, 0.88);
+}
+
+:root[data-palette='cloud-saas']:not([data-theme='dark']) {
+  --accent: #2563eb;
+  --accent-bright: #3b82f6;
+  --accent-soft: rgba(59, 130, 246, 0.1);
+  --bg: #fafbfc;
+  --surface: #ffffff;
+  --sidebar: transparent;
+  --sidebar-border: rgba(15, 23, 42, 0.08);
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+  --border: #e2e8f0;
+  --code-bg: #f1f5f9;
+  --quote-bg: #eff4fc;
+  --toolbar: rgba(232, 236, 241, 0.7);
+  --editor-bg: #fcfdfe;
+  --gutter-bg: #eef2f7;
+  --syntax-text: #333a42;
+  --syntax-muted: #7a828c;
+  --syntax-heading: #2563eb;
+  --syntax-keyword: #b4233d;
+  --syntax-string: #25664f;
+  --syntax-number: #175ca3;
+  --syntax-symbol: #9a6700;
+  --syntax-selection: rgba(59, 130, 246, 0.2);
+  --shadow: 0 22px 60px rgba(15, 23, 42, 0.12);
+  --chrome-base: #e8ecf1;
+  --chrome-tint: rgba(232, 236, 241, 0.76);
+  --glass-fill: rgba(232, 236, 241, 0.64);
+  --glass-edge: rgba(255, 255, 255, 0.64);
+  --glass-line: rgba(71, 85, 105, 0.13);
+  --glass-shade: rgba(71, 85, 105, 0.1);
+  --glass-light: rgba(255, 255, 255, 0.5);
+  --relief-dark: rgba(120, 134, 156, 0.3);
+  --relief-light: rgba(255, 255, 255, 0.88);
+}
+
+:root[data-palette='blush-lavender']:not([data-theme='dark']) {
+  --accent: #9b72cf;
+  --accent-bright: #b08cdd;
+  --accent-soft: rgba(155, 114, 207, 0.1);
+  --bg: #fbf4f7;
+  --surface: #ffffff;
+  --sidebar: transparent;
+  --sidebar-border: rgba(122, 63, 90, 0.1);
+  --text: #3a2a33;
+  --text-secondary: #7a5f6e;
+  --text-tertiary: #b095a2;
+  --border: #ebd6df;
+  --code-bg: #f6ebf0;
+  --quote-bg: #f6e9f3;
+  --toolbar: rgba(242, 226, 233, 0.7);
+  --editor-bg: #fdf9fb;
+  --gutter-bg: #f4e7ed;
+  --syntax-text: #333a42;
+  --syntax-muted: #7a828c;
+  --syntax-heading: #9b72cf;
+  --syntax-keyword: #b4233d;
+  --syntax-string: #25664f;
+  --syntax-number: #175ca3;
+  --syntax-symbol: #9a6700;
+  --syntax-selection: rgba(155, 114, 207, 0.2);
+  --shadow: 0 22px 60px rgba(90, 58, 74, 0.13);
+  --chrome-base: #f2e2e9;
+  --chrome-tint: rgba(242, 226, 233, 0.76);
+  --glass-fill: rgba(242, 226, 233, 0.64);
+  --glass-edge: rgba(255, 255, 255, 0.64);
+  --glass-line: rgba(122, 95, 110, 0.13);
+  --glass-shade: rgba(122, 95, 110, 0.1);
+  --glass-light: rgba(255, 255, 255, 0.5);
+  --relief-dark: rgba(150, 116, 132, 0.3);
+  --relief-light: rgba(255, 255, 255, 0.88);
+}
+
+:root[data-palette='lilac-mist']:not([data-theme='dark']) {
+  --accent: #6f5b8d;
+  --accent-bright: #9b89b3;
+  --accent-soft: rgba(111, 91, 141, 0.1);
+  --bg: #f8f6fb;
+  --surface: #ffffff;
+  --sidebar: transparent;
+  --sidebar-border: rgba(61, 52, 80, 0.1);
+  --text: #3d3450;
+  --text-secondary: #6e6383;
+  --text-tertiary: #a193b8;
+  --border: #e3dbed;
+  --code-bg: #f1edf7;
+  --quote-bg: #f0eaf7;
+  --toolbar: rgba(234, 228, 242, 0.7);
+  --editor-bg: #fbfafd;
+  --gutter-bg: #eee9f5;
+  --syntax-text: #333a42;
+  --syntax-muted: #7a828c;
+  --syntax-heading: #6f5b8d;
+  --syntax-keyword: #b4233d;
+  --syntax-string: #25664f;
+  --syntax-number: #175ca3;
+  --syntax-symbol: #9a6700;
+  --syntax-selection: rgba(111, 91, 141, 0.2);
+  --shadow: 0 22px 60px rgba(61, 52, 80, 0.13);
+  --chrome-base: #eae4f2;
+  --chrome-tint: rgba(234, 228, 242, 0.76);
+  --glass-fill: rgba(234, 228, 242, 0.64);
+  --glass-edge: rgba(255, 255, 255, 0.64);
+  --glass-line: rgba(93, 79, 120, 0.13);
+  --glass-shade: rgba(93, 79, 120, 0.1);
+  --glass-light: rgba(255, 255, 255, 0.5);
+  --relief-dark: rgba(131, 114, 154, 0.3);
+  --relief-light: rgba(255, 255, 255, 0.88);
+}
+
+/* ============ Dark palettes ============ */
+
+:root[data-theme='dark'][data-palette='github-dim'] {
+  --accent: #58a6ff;
+  --accent-bright: #79c0ff;
+  --accent-soft: rgba(88, 166, 255, 0.13);
+  --bg: #0d1117;
+  --surface: #161b22;
+  --sidebar: transparent;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --text: #c9d1d9;
+  --text-secondary: #8b949e;
+  --text-tertiary: #6e7681;
+  --border: #30363d;
+  --code-bg: #161b22;
+  --quote-bg: #16202c;
+  --toolbar: rgba(22, 27, 34, 0.7);
+  --editor-bg: #0e131b;
+  --gutter-bg: #131a23;
+  --syntax-text: #dce2ea;
+  --syntax-muted: #87919d;
+  --syntax-heading: #d2a8ff;
+  --syntax-keyword: #ff7b72;
+  --syntax-string: #8ed6b4;
+  --syntax-number: #79c0ff;
+  --syntax-symbol: #e3b341;
+  --syntax-selection: rgba(88, 166, 255, 0.22);
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.32);
+  --chrome-base: #161b22;
+  --chrome-tint: rgba(22, 27, 34, 0.82);
+  --glass-fill: rgba(22, 27, 34, 0.68);
+  --glass-edge: rgba(210, 225, 255, 0.12);
+  --glass-line: rgba(180, 200, 220, 0.1);
+  --glass-shade: rgba(0, 0, 0, 0.28);
+  --glass-light: rgba(190, 210, 235, 0.12);
+  --relief-dark: rgba(2, 6, 10, 0.5);
+  --relief-light: rgba(58, 68, 80, 0.3);
+}
+
+:root[data-theme='dark'][data-palette='midnight-indigo'] {
+  --accent: #6c63f0;
+  --accent-bright: #8a83ff;
+  --accent-soft: rgba(108, 99, 240, 0.15);
+  --bg: #0a0a1a;
+  --surface: #141432;
+  --sidebar: transparent;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --text: #e3e4f2;
+  --text-secondary: #9da0c3;
+  --text-tertiary: #6b6d94;
+  --border: #292950;
+  --code-bg: #12122c;
+  --quote-bg: #181840;
+  --toolbar: rgba(20, 20, 50, 0.7);
+  --editor-bg: #0c0c21;
+  --gutter-bg: #12122c;
+  --syntax-text: #dce2ea;
+  --syntax-muted: #87919d;
+  --syntax-heading: #c4b5fd;
+  --syntax-keyword: #ff7b72;
+  --syntax-string: #8ed6b4;
+  --syntax-number: #79c0ff;
+  --syntax-symbol: #e3b341;
+  --syntax-selection: rgba(108, 99, 240, 0.24);
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.36);
+  --chrome-base: #141432;
+  --chrome-tint: rgba(20, 20, 50, 0.82);
+  --glass-fill: rgba(20, 20, 50, 0.68);
+  --glass-edge: rgba(200, 200, 255, 0.12);
+  --glass-line: rgba(170, 170, 230, 0.1);
+  --glass-shade: rgba(0, 0, 0, 0.3);
+  --glass-light: rgba(180, 180, 240, 0.12);
+  --relief-dark: rgba(3, 3, 12, 0.5);
+  --relief-light: rgba(52, 52, 96, 0.3);
+}
+
+:root[data-theme='dark'][data-palette='linear-violet'] {
+  --accent: #6c77dd;
+  --accent-bright: #8a92e8;
+  --accent-soft: rgba(94, 106, 210, 0.15);
+  --bg: #0a0b1e;
+  --surface: #1c1d2e;
+  --sidebar: transparent;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --text: #e1e2ec;
+  --text-secondary: #9c9fb8;
+  --text-tertiary: #6a6d8c;
+  --border: #2e3049;
+  --code-bg: #151627;
+  --quote-bg: #1b1c36;
+  --toolbar: rgba(28, 29, 46, 0.7);
+  --editor-bg: #0d0e24;
+  --gutter-bg: #151628;
+  --syntax-text: #dce2ea;
+  --syntax-muted: #87919d;
+  --syntax-heading: #b7bdf5;
+  --syntax-keyword: #ff7b72;
+  --syntax-string: #8ed6b4;
+  --syntax-number: #79c0ff;
+  --syntax-symbol: #e3b341;
+  --syntax-selection: rgba(94, 106, 210, 0.24);
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.34);
+  --chrome-base: #1c1d2e;
+  --chrome-tint: rgba(28, 29, 46, 0.82);
+  --glass-fill: rgba(28, 29, 46, 0.68);
+  --glass-edge: rgba(205, 208, 255, 0.12);
+  --glass-line: rgba(175, 180, 225, 0.1);
+  --glass-shade: rgba(0, 0, 0, 0.28);
+  --glass-light: rgba(190, 195, 240, 0.12);
+  --relief-dark: rgba(4, 5, 14, 0.5);
+  --relief-light: rgba(64, 66, 100, 0.3);
+}
+
+:root[data-theme='dark'][data-palette='stripe-violet'] {
+  --accent: #7a74ff;
+  --accent-bright: #948fff;
+  --accent-soft: rgba(122, 116, 255, 0.15);
+  --bg: #0a2540;
+  --surface: #0f2d4d;
+  --sidebar: transparent;
+  --sidebar-border: rgba(255, 255, 255, 0.09);
+  --text: #e6eef7;
+  --text-secondary: #9bb2c8;
+  --text-tertiary: #6b87a3;
+  --border: #1f4166;
+  --code-bg: #0d2b49;
+  --quote-bg: #11304f;
+  --toolbar: rgba(15, 45, 77, 0.7);
+  --editor-bg: #0b2340;
+  --gutter-bg: #0f2c4b;
+  --syntax-text: #dce2ea;
+  --syntax-muted: #87919d;
+  --syntax-heading: #c7bfff;
+  --syntax-keyword: #ff7b72;
+  --syntax-string: #8ed6b4;
+  --syntax-number: #79c0ff;
+  --syntax-symbol: #e3b341;
+  --syntax-selection: rgba(122, 116, 255, 0.24);
+  --shadow: 0 22px 60px rgba(2, 10, 20, 0.4);
+  --chrome-base: #0f2d4d;
+  --chrome-tint: rgba(15, 45, 77, 0.82);
+  --glass-fill: rgba(15, 45, 77, 0.68);
+  --glass-edge: rgba(190, 220, 255, 0.12);
+  --glass-line: rgba(150, 190, 230, 0.1);
+  --glass-shade: rgba(0, 8, 18, 0.3);
+  --glass-light: rgba(170, 205, 245, 0.12);
+  --relief-dark: rgba(2, 10, 20, 0.5);
+  --relief-light: rgba(38, 70, 105, 0.3);
+}
+
+/* ==== 新增浅色配色 ==== */
+
+:root[data-palette='ibm-blue']:not([data-theme='dark']) {
+  --accent: #0f62fe;
+  --accent-bright: #0043ce;
+  --accent-soft: rgba(15, 98, 254, 0.1);
+  --bg: #f4f4f4;
+  --surface: #ffffff;
+  --sidebar: transparent;
+  --sidebar-border: rgba(22, 22, 22, 0.08);
+  --text: #161616;
+  --text-secondary: #525252;
+  --text-tertiary: #8d8d8d;
+  --border: #e0e0e0;
+  --code-bg: #f4f4f4;
+  --quote-bg: #edf5ff;
+  --toolbar: rgba(244, 244, 244, 0.7);
+  --editor-bg: #fafafa;
+  --gutter-bg: #eaeaea;
+  --syntax-text: #333a42;
+  --syntax-muted: #7a828c;
+  --syntax-heading: #0f62fe;
+  --syntax-keyword: #b4233d;
+  --syntax-string: #25664f;
+  --syntax-number: #175ca3;
+  --syntax-symbol: #9a6700;
+  --syntax-selection: rgba(15, 98, 254, 0.2);
+  --shadow: 0 22px 60px rgba(22, 22, 22, 0.12);
+  --chrome-base: #eaeaea;
+  --chrome-tint: rgba(234, 234, 234, 0.76);
+  --glass-fill: rgba(234, 234, 234, 0.64);
+  --glass-edge: rgba(255, 255, 255, 0.64);
+  --glass-line: rgba(82, 82, 82, 0.13);
+  --glass-shade: rgba(82, 82, 82, 0.1);
+  --glass-light: rgba(255, 255, 255, 0.5);
+  --relief-dark: rgba(130, 130, 130, 0.3);
+  --relief-light: rgba(255, 255, 255, 0.88);
+}
+
+:root[data-palette='vapor-chrome']:not([data-theme='dark']) {
+  --accent: #6366f1;
+  --accent-bright: #818cf8;
+  --accent-soft: rgba(129, 140, 248, 0.14);
+  --bg: #f2effd;
+  --surface: #ffffff;
+  --sidebar: transparent;
+  --sidebar-border: rgba(99, 102, 241, 0.1);
+  --text: #312e4b;
+  --text-secondary: #615d80;
+  --text-tertiary: #9794b5;
+  --border: #ddd8f3;
+  --code-bg: #edebfb;
+  --quote-bg: #e5f9fd;
+  --toolbar: rgba(242, 239, 253, 0.7);
+  --editor-bg: #f8f7fe;
+  --gutter-bg: #ece9fa;
+  --syntax-text: #333a42;
+  --syntax-muted: #7a828c;
+  --syntax-heading: #6366f1;
+  --syntax-keyword: #b4233d;
+  --syntax-string: #25664f;
+  --syntax-number: #175ca3;
+  --syntax-symbol: #9a6700;
+  --syntax-selection: rgba(129, 140, 248, 0.2);
+  --shadow: 0 22px 60px rgba(73, 68, 130, 0.14);
+  --chrome-base: #e4e0f8;
+  --chrome-tint: rgba(228, 224, 248, 0.76);
+  --glass-fill: rgba(228, 224, 248, 0.64);
+  --glass-edge: rgba(255, 255, 255, 0.64);
+  --glass-line: rgba(97, 93, 128, 0.13);
+  --glass-shade: rgba(97, 93, 128, 0.1);
+  --glass-light: rgba(255, 255, 255, 0.5);
+  --relief-dark: rgba(139, 134, 180, 0.3);
+  --relief-light: rgba(255, 255, 255, 0.88);
+}
+
+:root[data-palette='sapphire-ice']:not([data-theme='dark']) {
+  --accent: #1e5ba8;
+  --accent-bright: #2e6fbd;
+  --accent-soft: rgba(30, 91, 168, 0.1);
+  --bg: #f0f6fd;
+  --surface: #ffffff;
+  --sidebar: transparent;
+  --sidebar-border: rgba(16, 37, 66, 0.09);
+  --text: #102542;
+  --text-secondary: #405877;
+  --text-tertiary: #7a93b3;
+  --border: #d2e0f0;
+  --code-bg: #e6eff9;
+  --quote-bg: #e2edfa;
+  --toolbar: rgba(234, 242, 251, 0.7);
+  --editor-bg: #f5f9fe;
+  --gutter-bg: #e3edf8;
+  --syntax-text: #333a42;
+  --syntax-muted: #7a828c;
+  --syntax-heading: #1e5ba8;
+  --syntax-keyword: #b4233d;
+  --syntax-string: #25664f;
+  --syntax-number: #175ca3;
+  --syntax-symbol: #9a6700;
+  --syntax-selection: rgba(30, 91, 168, 0.2);
+  --shadow: 0 22px 60px rgba(16, 37, 66, 0.13);
+  --chrome-base: #deebf8;
+  --chrome-tint: rgba(222, 235, 248, 0.76);
+  --glass-fill: rgba(222, 235, 248, 0.64);
+  --glass-edge: rgba(255, 255, 255, 0.64);
+  --glass-line: rgba(40, 70, 105, 0.13);
+  --glass-shade: rgba(40, 70, 105, 0.1);
+  --glass-light: rgba(255, 255, 255, 0.5);
+  --relief-dark: rgba(110, 140, 170, 0.3);
+  --relief-light: rgba(255, 255, 255, 0.88);
+}
+
+/* ==== 新增深色配色 ==== */
+
+:root[data-theme='dark'][data-palette='ultra-violet'] {
+  --accent: #8e72c9;
+  --accent-bright: #a98fe0;
+  --accent-soft: rgba(142, 114, 201, 0.15);
+  --bg: #1b1a2e;
+  --surface: #25243d;
+  --sidebar: transparent;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --text: #e9e4f3;
+  --text-secondary: #a49bbd;
+  --text-tertiary: #6f688a;
+  --border: #35334f;
+  --code-bg: #211f38;
+  --quote-bg: #2a2540;
+  --toolbar: rgba(27, 26, 46, 0.7);
+  --editor-bg: #191829;
+  --gutter-bg: #211f38;
+  --syntax-text: #dce2ea;
+  --syntax-muted: #87919d;
+  --syntax-heading: #bda7ee;
+  --syntax-keyword: #ff7b72;
+  --syntax-string: #8ed6b4;
+  --syntax-number: #79c0ff;
+  --syntax-symbol: #e3b341;
+  --syntax-selection: rgba(142, 114, 201, 0.24);
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.36);
+  --chrome-base: #25243d;
+  --chrome-tint: rgba(37, 36, 61, 0.82);
+  --glass-fill: rgba(37, 36, 61, 0.68);
+  --glass-edge: rgba(216, 205, 245, 0.12);
+  --glass-line: rgba(185, 172, 225, 0.1);
+  --glass-shade: rgba(0, 0, 0, 0.3);
+  --glass-light: rgba(200, 188, 235, 0.12);
+  --relief-dark: rgba(6, 5, 14, 0.5);
+  --relief-light: rgba(72, 66, 108, 0.3);
+}
+
+/* ============ Palette picker control ============ */
+
+.palette-select {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: var(--glass-fill, var(--surface));
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+  outline: none;
+  max-width: 170px;
+}
+
+.palette-select:hover {
+  color: var(--text);
+}
+
+.palette-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
