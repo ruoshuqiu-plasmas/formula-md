@@ -99,7 +99,7 @@ const markdown = window.markdownit({
 const validateMarkdownLink = markdown.validateLink;
 markdown.validateLink = (url) => /^file:/i.test(url) || /^data:image\/(?:png|jpe?g|gif|webp|bmp|avif|svg\+xml)[;,]/i.test(url) || validateMarkdownLink(url);
 window.DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
-  if (node.tagName === 'IMG' && data.attrName === 'src' && /^file:/i.test(data.attrValue)) data.forceKeepAttr = true;
+  if (node.tagName === 'IMG' && data.attrName === 'src' && /^(?:file:|[a-z]:(?:[\\/]|%5c|%2f))/i.test(data.attrValue)) data.forceKeepAttr = true;
 });
 
 markdown.renderer.rules.link_open = (tokens, index, options, env, self) => {

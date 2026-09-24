@@ -49,6 +49,11 @@ app.on('browser-window-created', (_event, window) => {
       await run('window.MathJax.startup.promise.then(() => true)');
       await wait('Boolean(currentAppearance)');
       await check('Migrates existing palette without resetting it', "currentAppearance.palette === 'cloud-saas'");
+      await check('Windows drive image addresses survive sanitization for the controlled resolver', `(() => {
+        const html = window.DOMPurify.sanitize(markdown.render('![drive](<C:%5Cimages%5Ctest.png>)'));
+        const template = document.createElement('template'); template.innerHTML = html;
+        return Boolean(template.content.querySelector('img')?.getAttribute('src'));
+      })()`);
       let bridge;
       if (process.platform === 'darwin') {
         bridge = require(path.join(root, 'src/native/formula-md-native.node'));

@@ -6,8 +6,18 @@ const root = path.resolve(__dirname, '..');
 const source = path.join(root, 'native/bridge.mm');
 const output = path.join(root, 'src/native/formula-md-native.node');
 fs.mkdirSync(path.dirname(output), { recursive: true });
-const result = spawnSync('xcrun', ['clang++', '-std=c++17', '-fobjc-arc', '-fmodules', '-DNAPI_VERSION=8',
-  '-mmacosx-version-min=13.0', '-arch', process.arch, '-bundle', '-undefined', 'dynamic_lookup',
-  '-framework', 'AppKit', '-I', require('node-api-headers').include_dir, source, '-o', output], { stdio: 'inherit' });
-if (result.error) throw result.error;
-process.exit(result.status ?? 1);
+const temporary = fs.mkdtempSync(path.join(path.dirname(output), '.build-'));
+const built = path.join(temporary, 'formula-md-native.node');
+let exitCode = 1;
+try {
+  const result = spawnSync('xcrun', ['clang++', '-std=c++17', '-fobjc-arc', '-fmodules', '-DNAPI_VERSION=8',
+    '-mmacosx-version-min=13.0', '-arch', process.arch, '-bundle', '-undefined', 'dynamic_lookup',
+    '-framework', 'AppKit', '-I', require('node-api-headers').include_dir, source, '-o', built], { stdio: 'inherit' });
+  if (result.error) throw result.error;
+  exitCode = result.status ?? 1;
+  // Keep an already-running preview's mapped binary intact during rebuilds.
+  if (exitCode === 0) fs.renameSync(built, output);
+} finally {
+  fs.rmSync(temporary, { recursive: true, force: true });
+}
+process.exit(exitCode);

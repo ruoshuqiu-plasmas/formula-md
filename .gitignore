@@ -3,5 +3,6 @@ dist/
 .DS_Store
 *.log
 src/native/*.node
+src/native/.build-*/
 build/icon-1024.png
 build/icon.iconset/
