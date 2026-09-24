@@ -18,10 +18,10 @@ function classifySource(documentPath, source, platform = process.platform) {
     const url = new URL(value);
     if (url.hostname && url.hostname !== 'localhost') throw new Error('不支持网络共享图片路径。');
     if (platform === 'win32') return { type: 'local', value: decodeURIComponent(url.pathname).replace(/^\/([a-z]:)/i, '$1').replaceAll('/', '\\') };
-    return { type: 'local', value: fileURLToPath(url) };
+    return { type: 'local', value: fileURLToPath(url, { windows: false }) };
   }
-  if (/^[a-z][\w+.-]*:/i.test(value) && !/^[a-z]:[\\/]/i.test(value)) throw new Error('不支持此图片地址协议。');
   const decoded = decodeURIComponent(value.replace(/(\.(?:png|jpe?g|gif|webp|bmp|avif|svg))[?#].*$/i, '$1'));
+  if (/^[a-z][\w+.-]*:/i.test(decoded) && !/^[a-z]:[\\/]/i.test(decoded)) throw new Error('不支持此图片地址协议。');
   if (/^(\\\\|\/\/)/.test(decoded)) throw new Error('不支持网络共享图片路径。');
   const paths = platform === 'win32' ? path.win32 : path.posix;
   return { type: 'local', value: paths.resolve(paths.dirname(documentPath), decoded) };

@@ -99,7 +99,12 @@ static NSString *hexColor(NSColor *value) {
 }
 - (void)controlTextDidChange:(NSNotification *)notification {
   if (notification.object == self.controls[@"search"]) emit(@{@"command": @"search", @"value": [notification.object stringValue]});
-  else if ([notification.object isKindOfClass:NSTextField.class]) [self.editingColors addObject:[notification.object identifier]];
+  else if ([notification.object isKindOfClass:NSTextField.class]) {
+    NSTextField *field = notification.object;
+    [self.editingColors addObject:field.identifier];
+    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"^#[0-9a-fA-F]{6}$" options:0 error:nil];
+    if ([regex numberOfMatchesInString:field.stringValue options:0 range:NSMakeRange(0, field.stringValue.length)]) emit(@{@"settings": @{@"colors": @{@"palette": self.appearance[@"palette"], field.identifier: field.stringValue}}});
+  }
 }
 - (BOOL)control:(NSControl *)control textView:(NSTextView *)textView doCommandBySelector:(SEL)selector {
   if (control == self.controls[@"search"] && selector == @selector(cancelOperation:)) {
@@ -120,13 +125,15 @@ static NSString *hexColor(NSColor *value) {
   self.controls[@"save"].enabled = hasDocument && [self.ui[@"dirty"] boolValue] && ![self.ui[@"saving"] boolValue];
   self.controls[@"pdf"].enabled = hasDocument && ![self.ui[@"exporting"] boolValue];
   [(NSSegmentedControl *)self.controls[@"mode"] setSelectedSegment:[self.ui[@"editing"] boolValue] ? 1 : 0];
-  self.window.title = self.ui[@"title"] ?: @"Formula MD";
+  NSString *title = self.ui[@"title"] ?: @"Formula MD";
+  if (![self.window.title isEqualToString:title]) self.window.title = title;
   BOOL dark = [self.appearance[@"theme"] isEqual:@"dark"];
-  self.window.appearance = [NSAppearance appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
-  self.panel.appearance = self.window.appearance;
+  NSAppearance *appearance = [NSAppearance appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
+  if (self.window.appearance != appearance) self.window.appearance = appearance;
+  if (self.panel.appearance != appearance) self.panel.appearance = appearance;
   NSColor *tint = color(self.appearance[@"colors"][@"accent"]);
   for (NSControl *control in self.controls.allValues) {
-    if ([control isKindOfClass:NSButton.class]) [(NSButton *)control setBezelColor:tint];
+    if ([control isKindOfClass:NSButton.class] && ![[(NSButton *)control bezelColor] isEqual:tint]) [(NSButton *)control setBezelColor:tint];
   }
   NSSearchField *search = (NSSearchField *)self.controls[@"search"];
   search.toolTip = [NSString stringWithFormat:@"在文档中查找 %@", self.ui[@"searchCount"] ?: @""];

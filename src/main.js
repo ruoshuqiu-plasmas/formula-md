@@ -10,6 +10,8 @@ let settingsInitialized = false;
 let nativeUI = null;
 let nativeActive = false;
 let nativeError = null;
+let appearanceSnapshot = '';
+let uiSnapshot = '';
 let uiState = { hasDocument: false, title: 'Formula MD' };
 const images = new ImageResources({ allowRemote: () => settingsState.allowRemoteImages });
 
@@ -489,6 +491,9 @@ function windowAppearance() {
 function syncWindowAppearance() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const appearance = windowAppearance();
+  const snapshot = JSON.stringify(appearance);
+  if (snapshot === appearanceSnapshot) return;
+  appearanceSnapshot = snapshot;
   const opaque = appearance.reducedTransparency || appearance.highContrast;
   if (process.platform === 'darwin') mainWindow.setVibrancy(opaque ? null : 'under-window');
   if (process.platform === 'win32') {
@@ -513,6 +518,8 @@ function initializeNative() {
 nativeTheme.on('updated', syncWindowAppearance);
 
 function createWindow() {
+  appearanceSnapshot = '';
+  uiSnapshot = '';
   mainWindow = new BrowserWindow({
     width: 1320,
     height: 860,
@@ -604,7 +611,9 @@ ipcMain.on('ui:state', (_event, value) => {
   if (!value || typeof value !== 'object') return;
   uiState = { hasDocument: Boolean(value.hasDocument), dirty: Boolean(value.dirty), saving: Boolean(value.saving),
     editing: Boolean(value.editing), exporting: Boolean(value.exporting), title: String(value.title || 'Formula MD').slice(0, 300), searchCount: String(value.searchCount || '').slice(0, 40) };
-  if (nativeActive) nativeUI.sync(JSON.stringify({ ui: uiState }));
+  const snapshot = JSON.stringify(uiState);
+  if (snapshot !== uiSnapshot && nativeActive) nativeUI.sync(JSON.stringify({ ui: uiState }));
+  uiSnapshot = snapshot;
 });
 ipcMain.handle('images:prepare', (_event, filePath, sources) => images.prepare(path.resolve(filePath), sources));
 ipcMain.handle('images:error', (_event, url) => images.error(String(url)));

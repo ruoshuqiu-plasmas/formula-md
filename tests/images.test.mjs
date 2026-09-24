@@ -9,10 +9,11 @@ const { classifySource, imageType, importImages, ImageResources, download, MAX_I
 const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80"><rect width="120" height="80" fill="#16816e"/></svg>');
 
 test('image sources resolve against the document and preserve encoded special characters', () => {
-  assert.equal(classifySource('/docs/实验/a.md', '../图 片/a%23b%28c%29.svg').value, '/docs/图 片/a#b(c).svg');
-  assert.equal(classifySource('/docs/a.md', 'file:///tmp/%E5%9B%BE.svg').value, '/tmp/图.svg');
+  assert.equal(classifySource('/docs/实验/a.md', '../图 片/a%23b%28c%29.svg', 'darwin').value, '/docs/图 片/a#b(c).svg');
+  assert.equal(classifySource('/docs/a.md', 'file:///tmp/%E5%9B%BE.svg', 'darwin').value, '/tmp/图.svg');
   assert.equal(classifySource('C:\\docs\\a.md', '..\\images\\a.png', 'win32').value, 'C:\\images\\a.png');
   assert.equal(classifySource('C:\\docs\\a.md', 'file:///D:/images/a%20b.png', 'win32').value, 'D:\\images\\a b.png');
+  assert.equal(classifySource('C:\\docs\\a.md', 'C:%5Cimages%5Ca.png', 'win32').value, 'C:\\images\\a.png');
   assert.throws(() => classifySource('/docs/a.md', 'javascript:alert(1)'));
   assert.throws(() => classifySource('/docs/a.md', 'https://user:pass@example.com/a.png'));
   assert.throws(() => classifySource('C:\\a.md', '\\\\server\\share\\a.png', 'win32'));
