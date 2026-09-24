@@ -2,6 +2,8 @@ const { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell, protocol 
 const fs = require('node:fs');
 const fsPromises = require('node:fs/promises');
 const path = require('node:path');
+const os = require('node:os');
+const supportsWindowsBackdrop = process.platform === 'win32' && Number(os.release().split('.')[2]) >= 22621;
 const Settings = require('./shared/appearance-settings');
 const { ImageResources, importImages, EXTENSIONS } = require('./images');
 protocol.registerSchemesAsPrivileged([{ scheme: 'formula-md-image', privileges: { standard: true, secure: true } }]);
@@ -496,10 +498,10 @@ function syncWindowAppearance() {
   appearanceSnapshot = snapshot;
   const opaque = appearance.reducedTransparency || appearance.highContrast;
   if (process.platform === 'darwin') mainWindow.setVibrancy(opaque ? null : 'under-window');
-  if (process.platform === 'win32') {
+  if (supportsWindowsBackdrop) {
     try { mainWindow.setBackgroundMaterial(opaque ? 'none' : 'acrylic'); } catch { /* Older Windows uses the CSS background. */ }
   }
-  mainWindow.setBackgroundColor(!opaque && (process.platform === 'darwin' || process.platform === 'win32') ? '#00000000' : appearance.colors.chrome);
+  mainWindow.setBackgroundColor(!opaque && (process.platform === 'darwin' || supportsWindowsBackdrop) ? '#00000000' : appearance.colors.chrome);
   if (nativeActive) nativeUI.sync(JSON.stringify({ appearance, ui: uiState }));
   mainWindow.webContents.send('appearance:changed', appearance);
 }
