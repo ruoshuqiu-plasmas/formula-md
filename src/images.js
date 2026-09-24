@@ -44,6 +44,14 @@ function imageType(bytes) {
   throw new Error('不是受支持的图片文件。');
 }
 
+function imageErrorMessage(error) {
+  if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return '找不到图片文件，请检查路径。';
+  if (error.code === 'EACCES' || error.code === 'EPERM') return '没有读取或写入此图片的权限。';
+  if (error.name === 'AbortError') return '图片加载超时或已取消。';
+  if (/[\u3400-\u9fff]/.test(error.message || '')) return error.message;
+  return '图片加载失败，请检查文件或网络连接。';
+}
+
 async function readLocal(filePath) {
   const file = await fs.open(filePath, 'r');
   try {
@@ -141,7 +149,7 @@ class ImageResources {
         const format = imageType(bytes);
         return { bytes, ...format };
       })().catch((error) => {
-        resource.error = error.name === 'AbortError' ? '图片加载超时或已取消。' : error.message;
+        resource.error = imageErrorMessage(error);
         throw new Error(resource.error);
       }).finally(() => { clearTimeout(timer); resource.pending = null; });
     }
@@ -190,7 +198,7 @@ async function importImages(documentPath, items) {
       const relative = path.relative(path.dirname(documentPath), target).split(path.sep).map(encodeURIComponent).join('/');
       const alt = base.replace(/[\[\]\\]/g, '\\$&');
       results.push({ markdown: `![${alt}](<${relative}>)`, path: target });
-    } catch (error) { results.push({ error: `${item.name || '图片'}：${error.message}` }); }
+    } catch (error) { results.push({ error: `${item.name || '图片'}：${imageErrorMessage(error)}` }); }
   }
   return results;
 }

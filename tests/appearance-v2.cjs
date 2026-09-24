@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const http = require('node:http');
 const { pathToFileURL } = require('node:url');
-const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'formula-v2-'));
+const profile = process.env.FORMULA_MD_QA_PROFILE || fs.mkdtempSync(path.join(os.tmpdir(), 'formula-v2-'));
 const root = process.env.FORMULA_MD_APP_PATH || path.resolve(__dirname, '..');
 const output = path.resolve(__dirname, '../dist/qa-v2', process.env.FORMULA_MD_QA_LABEL || process.platform);
 fs.mkdirSync(output, { recursive: true });
@@ -31,7 +31,6 @@ function finish(error) {
   fs.writeFileSync(path.join(output, 'checks.json'), JSON.stringify({ checks, error: error?.stack || null, platform: process.platform, electron: process.versions.electron }, null, 2));
   console.log(JSON.stringify({ checks, error: error?.stack || null, output }, null, 2));
   testWindow?.destroy(); server?.close();
-  fs.rmSync(profile, { recursive: true, force: true });
   app.exit(error ? 1 : 0);
 }
 app.on('browser-window-created', (_event, window) => {
@@ -77,6 +76,17 @@ app.on('browser-window-created', (_event, window) => {
       await check('MathJax pipeline still renders protected formulas', "Boolean(elements.article.querySelector('mjx-container'))");
       await check('Disabled and missing images show descriptive placeholders', "elements.article.querySelectorAll('.image-placeholder').length === 2");
       assert.equal(requests, 0); checks.push('Remote images default to zero network requests');
+      if (bridge && (await run('currentAppearance.nativeUI'))) {
+        bridge.perform(JSON.stringify({ id:'search', value:'图片' }));
+        await wait('state.searchMarks.length > 0');
+        checks.push('Native Chinese search reaches renderer search and count state');
+        bridge.perform(JSON.stringify({ id:'search', value:'' }));
+        bridge.perform(JSON.stringify({ id:'mode', value:1 }));
+        await wait('activeTab().isEditing');
+        checks.push('Native segmented control changes document editing mode');
+        bridge.perform(JSON.stringify({ id:'mode', value:0 }));
+        await wait('!activeTab().isEditing');
+      }
       await capture('light-images');
       await run('window.formulaMD.writeSettings({ allowRemoteImages: true })');
       await wait("elements.article.querySelectorAll('img').length === 7");
@@ -135,6 +145,10 @@ app.on('browser-window-created', (_event, window) => {
       await run("window.formulaMD.writeSettings({colors:{palette:'ultra-violet',accent:'#ff9955',page:'#202030',chrome:'#302030',text:'#ffeecc'},chromeOpacity:0})");
       await wait("getComputedStyle(elements.article).color === 'rgb(255, 238, 204)'");
       await check('Transparent chrome keeps text, formula and content panel opaque', "getComputedStyle(elements.article).opacity === '1' && getComputedStyle(elements.documentArea).backgroundColor === 'rgb(32, 32, 48)'");
+      if (bridge && (await run('currentAppearance.nativeUI'))) {
+        assert.equal(JSON.parse(bridge.diagnostics()).settingsHex.accent, '#ff9955');
+        checks.push('Native color wells and hex fields stay synchronized after palette changes');
+      }
       await capture('dark-custom');
       await run("window.formulaMD.writeSettings({chromeOpacity:1})");
       await wait("currentAppearance.settings.chromeOpacity === 1");
@@ -164,6 +178,7 @@ app.on('browser-window-created', (_event, window) => {
       await pause(150);
       await check('Minimum-size layout contains the document', 'elements.documentArea.getBoundingClientRect().right <= innerWidth && elements.documentArea.clientHeight > 200');
       await capture('minimum-window');
+      fs.copyFileSync(path.join(profile, 'settings.json'), path.join(output, 'settings-saved.json'));
       if (process.env.FORMULA_MD_QA_HOLD === '1') {
         window.show(); window.focus();
         console.log('QA window ready for visual inspection');

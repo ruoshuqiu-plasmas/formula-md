@@ -13,7 +13,7 @@
     "start": "node scripts/build-native.cjs && electron .",
     "build:native": "node scripts/build-native.cjs",
     "test": "node --test tests/*.test.mjs",
-    "test:appearance": "node scripts/build-native.cjs && electron tests/appearance-v2.cjs",
+    "test:appearance": "node scripts/build-native.cjs && node scripts/run-appearance.cjs",
     "test:appearance:legacy": "electron tests/appearance-smoke.cjs",
     "bench:appearance": "electron tests/appearance-benchmark.cjs",
     "pack": "node scripts/build-native.cjs && electron-builder --mac dir",

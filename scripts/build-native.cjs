@@ -10,4 +10,4 @@ const result = spawnSync('xcrun', ['clang++', '-std=c++17', '-fobjc-arc', '-fmod
   '-mmacosx-version-min=13.0', '-arch', process.arch, '-bundle', '-undefined', 'dynamic_lookup',
   '-framework', 'AppKit', '-I', require('node-api-headers').include_dir, source, '-o', output], { stdio: 'inherit' });
 if (result.error) throw result.error;
-process.exit(result.status || 0);
+process.exit(result.status ?? 1);

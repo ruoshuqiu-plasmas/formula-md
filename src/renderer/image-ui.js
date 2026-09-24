@@ -59,7 +59,11 @@ async function insertImages(importer) {
     const content = state.activePath === anchor.path ? elements.sourceEditor.value : tab.document.content;
     window.InsertionAnchor.rebase(anchor, content);
     if (anchor.invalid) return showToast('插入位置的内容已改变，未覆盖输入；图片已保存在资源目录。');
-    const insertion = `${anchor.start && content[anchor.start - 1] !== '\n' ? '\n' : ''}${successful.map((item) => item.markdown).join('\n')}\n`;
+    const before = content.slice(0, anchor.start);
+    const after = content.slice(anchor.end);
+    const prefix = !before || before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n';
+    const suffix = after.startsWith('\n\n') ? '' : after.startsWith('\n') ? '\n' : '\n\n';
+    const insertion = `${prefix}${successful.map((item) => item.markdown).join('\n\n')}${suffix}`;
     if (new TextEncoder().encode(content).length + new TextEncoder().encode(insertion).length > 20 * 1024 * 1024) throw new Error('插入后文档超过 20 MB，图片已保存在资源目录。');
     importAnchors.delete(anchor);
     if (state.activePath === anchor.path) {

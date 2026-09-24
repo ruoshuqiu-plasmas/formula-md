@@ -69,7 +69,7 @@ static NSString *hexColor(NSColor *value) {
     field.delegate = self;
     field.target = self;
     field.action = @selector(searchNext:);
-    field.sendsSearchStringImmediately = YES;
+    field.sendsWholeSearchString = YES;
     item.label = @"查找";
     item.view = field;
     self.controls[identifier] = field;
@@ -292,7 +292,7 @@ static napi_value attach(napi_env env, napi_callback_info info) {
 }
 static napi_value syncState(napi_env env, napi_callback_info info) { [controller sync:argument(env, info)]; return undefined(env); }
 static napi_value showSettings(napi_env env, napi_callback_info info) { [controller showSettings]; return undefined(env); }
-static napi_value focusSearch(napi_env env, napi_callback_info info) { [controller.window makeFirstResponder:controller.controls[@"search"]]; return undefined(env); }
+static napi_value focusSearch(napi_env env, napi_callback_info info) { [controller.window makeKeyAndOrderFront:nil]; [controller.window makeFirstResponder:controller.controls[@"search"]]; return undefined(env); }
 static napi_value dispose(napi_env env, napi_callback_info info) { stop(); return undefined(env); }
 static napi_value diagnostics(napi_env env, napi_callback_info info) {
   NSMutableArray *controls = [NSMutableArray array];
@@ -300,13 +300,23 @@ static napi_value diagnostics(napi_env env, napi_callback_info info) {
     NSControl *control = controller.controls[key];
     [controls addObject:@{@"id": key, @"class": NSStringFromClass(control.class), @"enabled": @(control.enabled), @"glass": @([control isKindOfClass:NSButton.class] && [(NSButton *)control bezelStyle] == 16)}];
   }
-  return json(env, @{@"attached": @(controller.window.toolbar == controller.toolbar && controller != nil), @"controls": controls, @"settingsClass": controller.panel ? NSStringFromClass(controller.panel.class) : @"", @"title": controller.window.title ?: @""});
+  NSMutableDictionary *hex = [NSMutableDictionary dictionary];
+  for (NSString *key in @[@"accent", @"chrome", @"page", @"text"]) hex[key] = controller.settingsControls[[key stringByAppendingString:@"Hex"]].stringValue ?: @"";
+  return json(env, @{@"attached": @(controller.window.toolbar == controller.toolbar && controller != nil), @"controls": controls, @"settingsHex": hex, @"settingsClass": controller.panel ? NSStringFromClass(controller.panel.class) : @"", @"title": controller.window.title ?: @""});
 }
 // Main-process test harness only; never exposed through the renderer bridge.
 static napi_value perform(napi_env env, napi_callback_info info) {
   NSDictionary *args = argument(env, info);
   NSControl *control = controller.controls[args[@"id"]];
-  if (control.enabled) [control performClick:nil];
+  if (control.enabled) {
+    if ([control isKindOfClass:NSSearchField.class] && [args[@"value"] isKindOfClass:NSString.class]) {
+      control.stringValue = args[@"value"];
+      [controller controlTextDidChange:[NSNotification notificationWithName:NSControlTextDidChangeNotification object:control]];
+    } else if ([control isKindOfClass:NSSegmentedControl.class]) {
+      [(NSSegmentedControl *)control setSelectedSegment:[args[@"value"] integerValue]];
+      [control sendAction:control.action to:control.target];
+    } else [control performClick:nil];
+  }
   return undefined(env);
 }
 static napi_value init(napi_env env, napi_value exports) {
