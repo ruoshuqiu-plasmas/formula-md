@@ -1,6 +1,17 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('formulaMD', {
+  getAppearance: () => ipcRenderer.invoke('appearance:read'),
+  showSettings: () => ipcRenderer.invoke('ui:settings'),
+  focusNativeSearch: () => ipcRenderer.invoke('ui:focus-search'),
+  updateUIState: (state) => ipcRenderer.send('ui:state', state),
+  onCommand: (callback) => ipcRenderer.on('ui:command', (_event, command) => callback(command)),
+  prepareImages: (filePath, sources) => ipcRenderer.invoke('images:prepare', filePath, sources),
+  imageError: (url) => ipcRenderer.invoke('images:error', url),
+  chooseImages: (filePath) => ipcRenderer.invoke('images:choose', filePath),
+  importImages: (filePath, items) => ipcRenderer.invoke('images:import', filePath, items),
+  importImageFiles: (filePath, files) => ipcRenderer.invoke('images:import', filePath,
+    files.map((file) => ({ path: webUtils.getPathForFile(file), name: file.name }))),
   setTheme: (theme) => ipcRenderer.invoke('appearance:set-theme', theme),
   readSettings: () => ipcRenderer.invoke('settings:read'),
   writeSettings: (patch) => ipcRenderer.invoke('settings:write', patch),

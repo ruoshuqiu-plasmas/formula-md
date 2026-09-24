@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file:; font-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: formula-md-image:; font-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
     />
     <title>Formula MD</title>
     <link id="hljsLightTheme" rel="stylesheet" href="../../node_modules/@highlightjs/cdn-assets/styles/github.min.css" />
@@ -13,6 +13,8 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="glass.css" media="screen" />
     <link rel="stylesheet" href="themes.css" media="screen" />
+    <link rel="stylesheet" href="appearance-v2.css" media="screen" />
+    <style id="appearanceOverrides" media="screen"></style>
     <script defer src="mathjax-config.js"></script>
     <script defer src="../../node_modules/mathjax/es5/tex-chtml-full.js"></script>
     <script defer src="../../node_modules/markdown-it/dist/markdown-it.min.js"></script>
@@ -23,9 +25,23 @@
     <script defer src="editor-state.js"></script>
     <script defer src="scroll-sync.js"></script>
     <script defer src="glass-effects.js"></script>
+    <script defer src="../shared/appearance-settings.js"></script>
+    <script defer src="../shared/insertion-anchor.js"></script>
+    <script defer src="image-ui.js"></script>
+    <script defer src="appearance-ui.js"></script>
     <script defer src="app.js"></script>
   </head>
   <body>
+    <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+      <div class="settings-heading"><h2 id="settingsTitle">外观与图片设置</h2><button id="closeSettings" type="button" aria-label="关闭设置">关闭</button></div>
+      <label class="setting-row"><span>显示模式</span><select id="settingsTheme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label>
+      <label class="setting-row"><span>配色预设</span><select id="settingsPalette"></select></label>
+      <label class="setting-row"><span>背景透明度</span><input id="settingsOpacity" type="range" min="0" max="100" value="20"/><output id="opacityValue">20%</output></label>
+      <div id="colorSettings"></div>
+      <label class="remote-setting"><input id="settingsRemote" type="checkbox"/>允许加载 HTTP / HTTPS 网络图片</label>
+      <p class="settings-note">透明度仅调整外围背景；正文、图片与文字保持清晰。系统辅助功能设置优先生效。</p>
+      <button id="resetColors" type="button">恢复当前预设颜色</button>
+    </dialog>
     <div id="dropOverlay" class="drop-overlay" aria-hidden="true">
       <div class="drop-card">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" /></svg>
@@ -119,6 +135,12 @@
               <option value="stripe-violet">Stripe Violet 条纹紫</option>
               <option value="ultra-violet">Ultra Violet 紫外光</option>
             </select>
+            <button id="insertImageButton" class="icon-button glass-control" type="button" title="插入图片 (⇧⌘I)" aria-label="插入图片" disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8" cy="9" r="1.5"/><path d="m3 17 5-5 4 4 3-4 6 6"/></svg>
+            </button>
+            <button id="settingsButton" class="icon-button glass-control" type="button" title="外观与图片设置" aria-label="外观与图片设置">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6"/></svg>
+            </button>
             <button id="themeButton" class="icon-button glass-control" type="button" title="切换主题" aria-label="切换主题">
               <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg>
               <svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z" /></svg>

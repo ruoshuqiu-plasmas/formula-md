@@ -1,7 +1,18 @@
-const { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell, protocol } = require('electron');
 const fs = require('node:fs');
 const fsPromises = require('node:fs/promises');
 const path = require('node:path');
+const Settings = require('./shared/appearance-settings');
+const { ImageResources, importImages, EXTENSIONS } = require('./images');
+protocol.registerSchemesAsPrivileged([{ scheme: 'formula-md-image', privileges: { standard: true, secure: true } }]);
+let settingsState = Settings.normalize();
+let settingsInitialized = false;
+let nativeUI = null;
+let nativeActive = false;
+let nativeError = null;
+let uiState = { hasDocument: false, title: 'Formula MD' };
+const images = new ImageResources({ allowRemote: () => settingsState.allowRemoteImages });
+
 
 const MARKDOWN_EXTENSIONS = new Set(['.md', '.markdown', '.mdown', '.mkd', '.txt']);
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -54,66 +65,31 @@ async function rememberFile(filePath) {
   return next;
 }
 
-const SETTINGS_KEYS = ['theme', 'palette'];
-const THEME_VALUES = ['system', 'light', 'dark'];
-// Must list every slug the renderer knows: anything missing here is dropped
-// from settings.json, which would silently un-persist that palette.
-const PALETTE_VALUES = [
-  'arctic-frost',
-  'cloud-saas',
-  'blush-lavender',
-  'lilac-mist',
-  'ibm-blue',
-  'vapor-chrome',
-  'sapphire-ice',
-  'github-dim',
-  'midnight-indigo',
-  'linear-violet',
-  'stripe-violet',
-  'ultra-violet'
-];
-
-function settingsFilePath() {
-  return path.join(app.getPath('userData'), 'settings.json');
-}
-
-async function readStoredSettings() {
+function settingsFilePath() { return path.join(app.getPath('userData'), 'settings.json'); }
+async function loadSettings() {
   try {
     const stored = JSON.parse(await fsPromises.readFile(settingsFilePath(), 'utf8'));
-    return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
-  } catch {
-    return {};
-  }
+    settingsState = Settings.normalize(stored);
+    settingsInitialized = true;
+  } catch { settingsState = Settings.normalize(); }
+  nativeTheme.themeSource = settingsState.theme;
 }
-
-// The renderer's localStorage is not a dependable home for user preferences:
-// on a cold start it can read an empty storage area before Chromium has loaded
-// it, which silently resets every stored choice. This file is written
-// atomically by the main process the moment a preference changes.
-async function performSettingsWrite(patch) {
-  const next = await readStoredSettings();
-  if (patch && typeof patch === 'object') {
-    for (const key of SETTINGS_KEYS) {
-      if (typeof patch[key] === 'string') next[key] = patch[key];
-    }
-  }
-  if (next.theme && !THEME_VALUES.includes(next.theme)) delete next.theme;
-  if (next.palette && !PALETTE_VALUES.includes(next.palette)) delete next.palette;
-  await fsPromises.mkdir(app.getPath('userData'), { recursive: true });
-  const target = settingsFilePath();
-  const pending = `${target}.tmp`;
-  await fsPromises.writeFile(pending, JSON.stringify(next, null, 2), 'utf8');
-  await fsPromises.rename(pending, target);
-  return next;
-}
-
-// Preferences change in bursts (a palette switch also stores its theme), so the
-// read-modify-write cycles are serialised; running them concurrently let two
-// writers share one temporary file and leave a truncated settings.json behind.
+function readStoredSettings() { return { ...settingsState, initialized: settingsInitialized }; }
 let settingsWriteQueue = Promise.resolve();
-
 function writeStoredSettings(patch) {
-  const write = () => performSettingsWrite(patch);
+  const write = async () => {
+    const next = Settings.patch(settingsState, patch);
+    const target = settingsFilePath();
+    await fsPromises.mkdir(path.dirname(target), { recursive: true });
+    await fsPromises.writeFile(`${target}.tmp`, JSON.stringify(next, null, 2), 'utf8');
+    await fsPromises.rename(`${target}.tmp`, target);
+    if (settingsState.allowRemoteImages && !next.allowRemoteImages) images.disableRemote();
+    settingsState = next;
+    settingsInitialized = true;
+    nativeTheme.themeSource = next.theme;
+    syncWindowAppearance();
+    return readStoredSettings();
+  };
   settingsWriteQueue = settingsWriteQueue.then(write, write);
   return settingsWriteQueue;
 }
@@ -121,6 +97,7 @@ function writeStoredSettings(patch) {
 function stopWatching(filePath) {
   const resolved = filePath ? path.resolve(filePath) : null;
   if (resolved) {
+    images.close(resolved);
     const entry = fileWatchers.get(resolved);
     if (!entry) return;
     if (entry.timer) clearTimeout(entry.timer);
@@ -134,6 +111,7 @@ function stopWatching(filePath) {
     if (entry.timer) clearTimeout(entry.timer);
     entry.watcher.close();
   }
+  images.closeAll();
   fileWatchers.clear();
   ignoreWatchUntil.clear();
 }
@@ -202,6 +180,7 @@ async function readMarkdownFile(filePath, remember = true) {
   let content = await fsPromises.readFile(resolved, 'utf8');
   if (content.charCodeAt(0) === 0xfeff) content = content.slice(1);
   watchFile(resolved);
+  images.open(resolved);
   if (remember) await rememberFile(resolved);
 
   return {
@@ -443,6 +422,8 @@ async function buildMenuTemplate() {
         { role: 'paste' },
         { role: 'selectAll' },
         { type: 'separator' },
+        { label: '插入图片…', accelerator: 'CommandOrControl+Shift+I', click: () => dispatchCommand('image') },
+        { label: '外观与图片设置…', accelerator: 'CommandOrControl+,', click: () => dispatchCommand('settings') },
         {
           label: '查找',
           accelerator: 'CommandOrControl+F',
@@ -495,26 +476,38 @@ async function rebuildMenu() {
 }
 
 function windowAppearance() {
+  const resolved = Settings.resolve(settingsState, nativeTheme.shouldUseDarkColors);
   return {
-    platform: process.platform,
-    theme: nativeTheme.shouldUseDarkColors ? 'dark' : 'light',
+    platform: process.platform, theme: resolved.mode, palette: resolved.palette, colors: resolved.colors,
+    settings: readStoredSettings(), nativeUI: nativeActive, nativeError,
+    paletteList: Object.entries(Settings.palettes).map(([id, entry]) => ({ id, name: entry.name })),
     reducedTransparency: nativeTheme.prefersReducedTransparency,
     highContrast: nativeTheme.shouldUseHighContrastColors,
     active: Boolean(mainWindow?.isFocused())
   };
 }
-
 function syncWindowAppearance() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const appearance = windowAppearance();
   const opaque = appearance.reducedTransparency || appearance.highContrast;
-  if (process.platform === 'darwin') {
-    mainWindow.setVibrancy(opaque ? null : 'sidebar');
+  if (process.platform === 'darwin') mainWindow.setVibrancy(opaque ? null : 'under-window');
+  if (process.platform === 'win32') {
+    try { mainWindow.setBackgroundMaterial(opaque ? 'none' : 'acrylic'); } catch { /* Older Windows uses the CSS background. */ }
   }
-  mainWindow.setBackgroundColor(process.platform === 'darwin' && !opaque
-    ? '#00000000'
-    : appearance.theme === 'dark' ? '#202528' : '#edf1f4');
+  mainWindow.setBackgroundColor(!opaque && (process.platform === 'darwin' || process.platform === 'win32') ? '#00000000' : appearance.colors.chrome);
+  if (nativeActive) nativeUI.sync(JSON.stringify({ appearance, ui: uiState }));
   mainWindow.webContents.send('appearance:changed', appearance);
+}
+function dispatchCommand(command, value) {
+  if (command === 'settings' && nativeActive) return nativeUI.showSettings();
+  mainWindow?.webContents.send('ui:command', { command, value });
+}
+function initializeNative() {
+  if (process.platform !== 'darwin' || process.env.FORMULA_MD_DISABLE_NATIVE === '1') return;
+  try {
+    const bridge = require('./native/formula-md-native.node');
+    if (bridge.isSupported()) nativeUI = bridge;
+  } catch (error) { nativeError = error.message; console.error('AppKit bridge:', error.message); }
 }
 
 nativeTheme.on('updated', syncWindowAppearance);
@@ -530,8 +523,8 @@ function createWindow() {
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#202528' : '#edf1f4',
     ...(process.platform === 'darwin'
       ? {
-          titleBarStyle: 'hiddenInset',
-          trafficLightPosition: { x: 18, y: 17 },
+          titleBarStyle: nativeUI ? 'default' : 'hiddenInset',
+          ...(nativeUI ? {} : { trafficLightPosition: { x: 18, y: 17 } }),
           vibrancy: 'sidebar',
           visualEffectState: 'followWindow'
         }
@@ -547,6 +540,16 @@ function createWindow() {
     }
   });
 
+  if (nativeUI) {
+    try {
+      nativeUI.attach(mainWindow.getNativeWindowHandle(), (json) => {
+        const event = JSON.parse(json);
+        if (event.settings) writeStoredSettings(event.settings).catch((error) => mainWindow?.webContents.send('document:error', error.message));
+        else dispatchCommand(event.command, event.value);
+      });
+      nativeActive = true;
+    } catch (error) { nativeError = error.message; nativeActive = false; console.error('AppKit attachment:', error.message); }
+  }
   syncWindowAppearance();
   mainWindow.on('focus', () => mainWindow.webContents.send('appearance:changed', windowAppearance()));
   mainWindow.on('blur', () => mainWindow.webContents.send('appearance:changed', windowAppearance()));
@@ -573,6 +576,8 @@ function createWindow() {
     }
   });
   mainWindow.on('closed', () => {
+    if (nativeActive) nativeUI.dispose();
+    nativeActive = false;
     stopWatching();
     forceClose = false;
     hasUnsavedChanges = false;
@@ -590,10 +595,27 @@ function createWindow() {
 
 ipcMain.handle('appearance:set-theme', (_event, theme) => {
   if (!['system', 'light', 'dark'].includes(theme)) throw new Error('无效的主题。');
-  nativeTheme.themeSource = theme;
-  syncWindowAppearance();
-  return windowAppearance();
+  return writeStoredSettings({ theme }).then(() => windowAppearance());
 });
+ipcMain.handle('appearance:read', () => windowAppearance());
+ipcMain.handle('ui:settings', () => dispatchCommand('settings'));
+ipcMain.handle('ui:focus-search', () => { if (nativeActive) nativeUI.focusSearch(); return nativeActive; });
+ipcMain.on('ui:state', (_event, value) => {
+  if (!value || typeof value !== 'object') return;
+  uiState = { hasDocument: Boolean(value.hasDocument), dirty: Boolean(value.dirty), saving: Boolean(value.saving),
+    editing: Boolean(value.editing), exporting: Boolean(value.exporting), title: String(value.title || 'Formula MD').slice(0, 300), searchCount: String(value.searchCount || '').slice(0, 40) };
+  if (nativeActive) nativeUI.sync(JSON.stringify({ ui: uiState }));
+});
+ipcMain.handle('images:prepare', (_event, filePath, sources) => images.prepare(path.resolve(filePath), sources));
+ipcMain.handle('images:error', (_event, url) => images.error(String(url)));
+ipcMain.handle('images:choose', async (_event, filePath) => {
+  images.assertOpen(filePath);
+  const result = await dialog.showOpenDialog(mainWindow, { title: '插入图片', properties: ['openFile', 'multiSelections'], filters: [{ name: '图片', extensions: EXTENSIONS }] });
+  if (result.canceled) return [];
+  images.assertOpen(filePath);
+  return importImages(filePath, result.filePaths.map((source) => ({ path: source, name: path.basename(source) })));
+});
+ipcMain.handle('images:import', (_event, filePath, items) => { images.assertOpen(filePath); return importImages(filePath, items); });
 ipcMain.handle('settings:read', readStoredSettings);
 ipcMain.handle('settings:write', (_event, patch) => writeStoredSettings(patch));
 ipcMain.handle('document:choose', chooseMarkdownFile);
@@ -642,6 +664,16 @@ app.on('open-file', (event, filePath) => {
 });
 
 app.whenReady().then(async () => {
+  await loadSettings();
+  initializeNative();
+  protocol.handle('formula-md-image', async (request) => {
+    try {
+      const url = new URL(request.url);
+      if (url.hostname !== 'resource') return new Response(null, { status: 403 });
+      const loaded = await images.load(url.pathname.slice(1));
+      return new Response(loaded.bytes, { headers: { 'Content-Type': loaded.mime, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'" } });
+    } catch { return new Response(null, { status: 404 }); }
+  });
   createWindow();
   await rebuildMenu();
 

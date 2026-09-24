@@ -76,6 +76,7 @@ app.on('browser-window-created', (_event, window) => {
           }
           requestAnimationFrame(tick);
         })`));
+        if (!(await run("document.documentElement.dataset.nativeUi === 'true'"))) {
         await measure(`pointer-${round}`, () => run(`new Promise((resolve) => {
           const button = elements.pdfButton;
           const bounds = button.getBoundingClientRect();
@@ -96,6 +97,7 @@ app.on('browser-window-created', (_event, window) => {
         if (measured.hasGlass && measured.activeControl !== 'pdfButton') throw new Error('Pointer benchmark did not exercise the active glass surface');
         await run("document.body.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 400, clientY: 400 })); true");
         await pause(700);
+        }
       }
       result.visibleBackdropFilters = await run(`Array.from(document.querySelectorAll('*')).filter((element) => element.getBoundingClientRect().width && element.getBoundingClientRect().height && getComputedStyle(element).visibility !== 'hidden' && getComputedStyle(element).backdropFilter !== 'none').map((element) => element.className)`);
       fs.writeFileSync(path.join(output, `performance-${label}.json`), JSON.stringify(result, null, 2));

@@ -1689,3 +1689,10 @@ button {
     box-shadow: none;
   }
 }
+
+.markdown-body img { max-width: 100%; height: auto; }
+.image-placeholder { overflow-wrap: anywhere; }
+@media print {
+  #settingsDialog { display: none !important; }
+  .image-placeholder { display: inline-block; border: 1px dashed #777; padding: 6pt; color: #444; }
+}

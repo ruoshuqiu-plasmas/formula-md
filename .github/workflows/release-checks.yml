@@ -1,0 +1,46 @@
+name: Formula MD release checks
+on:
+  push:
+    branches: [main, 'codex/formula-md-2.0.0']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - if: matrix.os == 'macos-15'
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
+      - run: pnpm test
+      - run: pnpm test:appearance
+      - if: runner.os == 'macOS'
+        run: pnpm run pack --publish never
+      - if: runner.os == 'Windows'
+        run: pnpm dist:win --publish never
+      - run: node scripts/check-packaged.cjs
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-${{ matrix.os }}
+          path: dist/qa-v2
+      - if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-release
+          path: |
+            dist/Formula-MD-Setup-2.0.0-x64.exe
+            dist/Formula-MD-Setup-2.0.0-x64.exe.blockmap

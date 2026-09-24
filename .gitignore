@@ -2,5 +2,6 @@ node_modules/
 dist/
 .DS_Store
 *.log
+src/native/*.node
 build/icon-1024.png
 build/icon.iconset/

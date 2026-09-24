@@ -1,19 +1,6 @@
 const SESSION_KEY = 'formula-md-tab-session-v1';
-const PALETTES = {
-  'arctic-frost': { mode: 'light' },
-  'cloud-saas': { mode: 'light' },
-  'blush-lavender': { mode: 'light' },
-  'lilac-mist': { mode: 'light' },
-  'ibm-blue': { mode: 'light' },
-  'vapor-chrome': { mode: 'light' },
-  'sapphire-ice': { mode: 'light' },
-  'github-dim': { mode: 'dark' },
-  'midnight-indigo': { mode: 'dark' },
-  'linear-violet': { mode: 'dark' },
-  'stripe-violet': { mode: 'dark' },
-  'ultra-violet': { mode: 'dark' }
-};
-const DEFAULT_PALETTE = { light: 'arctic-frost', dark: 'github-dim' };
+const PALETTES = window.AppearanceSettings.palettes;
+const DEFAULT_PALETTE = window.AppearanceSettings.defaults;
 
 const state = {
   tabs: new Map(),
@@ -33,10 +20,23 @@ const state = {
   scrollAnchors: [],
   ignoredScroll: null,
   editorLineCount: 1,
+  imagesReady: Promise.resolve(),
   restoringPositions: false
 };
 
 const elements = {
+  appearanceOverrides: document.querySelector('#appearanceOverrides'),
+  insertImageButton: document.querySelector('#insertImageButton'),
+  settingsButton: document.querySelector('#settingsButton'),
+  settingsDialog: document.querySelector('#settingsDialog'),
+  settingsTheme: document.querySelector('#settingsTheme'),
+  settingsPalette: document.querySelector('#settingsPalette'),
+  settingsOpacity: document.querySelector('#settingsOpacity'),
+  opacityValue: document.querySelector('#opacityValue'),
+  settingsRemote: document.querySelector('#settingsRemote'),
+  colorSettings: document.querySelector('#colorSettings'),
+  closeSettings: document.querySelector('#closeSettings'),
+  resetColors: document.querySelector('#resetColors'),
   addTabButton: document.querySelector('#addTabButton'),
   article: document.querySelector('#article'),
   contentScroller: document.querySelector('#contentScroller'),
@@ -94,6 +94,12 @@ const markdown = window.markdownit({
     }
     return `<pre class="hljs"><code>${window.MathProtector.escapeHtml(code)}</code></pre>`;
   }
+});
+
+const validateMarkdownLink = markdown.validateLink;
+markdown.validateLink = (url) => /^file:/i.test(url) || /^data:image\/(?:png|jpe?g|gif|webp|bmp|avif|svg\+xml)[;,]/i.test(url) || validateMarkdownLink(url);
+window.DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
+  if (node.tagName === 'IMG' && data.attrName === 'src' && /^file:/i.test(data.attrValue)) data.forceKeepAttr = true;
 });
 
 markdown.renderer.rules.link_open = (tokens, index, options, env, self) => {
@@ -244,6 +250,7 @@ function refreshDirtyUI() {
   window.formulaMD.setDocumentEdited(anyDirtyTabs());
   updateWindowTitle();
   renderTabs();
+  refreshNativeUI();
 }
 
 function setDirty(dirty) {
@@ -578,6 +585,7 @@ function setEditMode(editing, remember = true, syncOnShow = true) {
   elements.readModeButton.setAttribute('aria-pressed', String(!tab.isEditing));
   elements.editModeButton.setAttribute('aria-pressed', String(tab.isEditing));
   window.GlassEffects.setMode(tab.isEditing);
+  refreshNativeUI();
   elements.editStatus.hidden = !tab.isEditing;
   elements.editStatusSeparator.hidden = !tab.isEditing;
 
@@ -681,9 +689,14 @@ async function renderActiveTab(options = {}) {
     ]
   });
 
+  const template = document.createElement('template');
+  template.innerHTML = window.MathProtector.restoreMath(sanitized, protectedSource.math);
+  const waitForImages = await prepareArticleImages(template.content, filePath);
+  if (renderId !== state.renderId || filePath !== state.activePath) return;
   if (window.MathJax.typesetClear) window.MathJax.typesetClear([elements.article]);
   if (window.MathJax.texReset) window.MathJax.texReset();
-  elements.article.innerHTML = window.MathProtector.restoreMath(sanitized, protectedSource.math);
+  elements.article.replaceChildren(template.content);
+  state.imagesReady = waitForImages();
   addCodeCopyButtons();
   buildOutline();
 
@@ -949,6 +962,7 @@ async function exportPdf() {
   syncActiveTabFromView();
   clearTimeout(state.previewTimer);
   state.exportingPdf = true;
+  refreshNativeUI();
   elements.pdfButton.disabled = true;
 
   try {
@@ -960,6 +974,10 @@ async function exportPdf() {
     };
     await renderActiveTab({ fromEditor: true, positions });
     if (state.activePath !== filePath) throw new Error('导出期间活动文档已改变。');
+    const exportRenderId = state.renderId;
+    await state.imagesReady;
+    if (exportRenderId !== state.renderId) throw new Error('导出期间文档内容已改变，请重试。');
+    if (state.activePath !== filePath) throw new Error('导出期间活动文档已改变。');
     if (document.fonts?.ready) await document.fonts.ready;
     await nextPaint();
 
@@ -970,6 +988,7 @@ async function exportPdf() {
     showToast(error.message || 'PDF 保存失败');
   } finally {
     state.exportingPdf = false;
+    refreshNativeUI();
     elements.pdfButton.disabled = false;
   }
 }
@@ -1073,6 +1092,7 @@ function updateSearchSelection() {
     : elements.searchInput.value.trim()
       ? '0/0'
       : '';
+  refreshNativeUI();
   if (state.currentMark >= 0) scrollContentToElement(state.searchMarks[state.currentMark], 'center');
 }
 
@@ -1080,69 +1100,6 @@ function moveSearch(direction) {
   if (!state.searchMarks.length) return;
   state.currentMark = (state.currentMark + direction + state.searchMarks.length) % state.searchMarks.length;
   updateSearchSelection();
-}
-
-function applyAppearance(appearance) {
-  const { theme, platform, reducedTransparency, highContrast, active } = appearance;
-  Object.assign(document.documentElement.dataset, {
-    theme,
-    platform,
-    reducedTransparency: String(reducedTransparency),
-    highContrast: String(highContrast),
-    windowActive: String(active)
-  });
-  const lightTheme = document.querySelector('#hljsLightTheme');
-  const darkTheme = document.querySelector('#hljsDarkTheme');
-  if (lightTheme && darkTheme) {
-    lightTheme.disabled = theme === 'dark';
-    darkTheme.disabled = theme !== 'dark';
-  }
-  window.GlassEffects.refresh();
-}
-
-function applyPalette(paletteId, options = {}) {
-  const palette = PALETTES[paletteId] ? paletteId : DEFAULT_PALETTE.light;
-  localStorage.setItem('formula-md-palette', palette);
-  window.formulaMD.writeSettings({ palette }).catch(() => {});
-  document.documentElement.dataset.palette = palette;
-  if (elements.paletteSelect) elements.paletteSelect.value = palette;
-  if (!options.keepTheme) applyTheme(PALETTES[palette].mode);
-}
-
-function initializePalette(settings = {}) {
-  const stored = localStorage.getItem('formula-md-palette');
-  const remembered = PALETTES[settings.palette] ? settings.palette : stored;
-  const resolvedTheme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
-  const palette = PALETTES[remembered] ? remembered : DEFAULT_PALETTE[resolvedTheme];
-  document.documentElement.dataset.palette = palette;
-  if (elements.paletteSelect) elements.paletteSelect.value = palette;
-  if (PALETTES[palette].mode !== resolvedTheme) applyTheme(PALETTES[palette].mode);
-}
-
-function applyTheme(theme) {
-  localStorage.setItem('formula-md-theme', theme);
-  window.formulaMD.writeSettings({ theme }).catch(() => {});
-  window.formulaMD.setTheme(theme).then(applyAppearance);
-}
-
-function initializeTheme() {
-  window.formulaMD.onAppearanceChanged(applyAppearance);
-  // The settings file wins over renderer storage, which can come up empty on a
-  // cold start; a choice that only exists in localStorage is migrated once.
-  window.formulaMD.readSettings().catch(() => ({})).then((settings) => {
-    const storedPalette = localStorage.getItem('formula-md-palette');
-    const storedTheme = localStorage.getItem('formula-md-theme');
-    if (!settings.palette && PALETTES[storedPalette]) settings.palette = storedPalette;
-    if (!settings.theme && ['dark', 'light'].includes(storedTheme)) settings.theme = storedTheme;
-    if (settings.palette || settings.theme) {
-      window.formulaMD.writeSettings(settings).catch(() => {});
-    }
-    const theme = ['dark', 'light'].includes(settings.theme) ? settings.theme : 'system';
-    return window.formulaMD.setTheme(theme).then((appearance) => {
-      applyAppearance(appearance);
-      initializePalette(settings);
-    });
-  });
 }
 
 async function restoreSession() {
@@ -1185,7 +1142,6 @@ elements.saveButton.addEventListener('click', () => saveDocument());
 elements.pdfButton.addEventListener('click', exportPdf);
 elements.themeButton.addEventListener('click', () => {
   const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-  applyPalette(DEFAULT_PALETTE[nextTheme], { keepTheme: true });
   applyTheme(nextTheme);
 });
 elements.paletteSelect.addEventListener('change', () => {
@@ -1207,6 +1163,7 @@ elements.searchInput.addEventListener('keydown', (event) => {
 elements.sourceEditor.addEventListener('input', () => {
   const tab = activeTab();
   if (!tab) return;
+  updateImportAnchors(tab, elements.sourceEditor.value);
   tab.document = { ...tab.document, content: elements.sourceEditor.value };
   updateEditorDecorations(true);
   updateEditorPosition();
@@ -1285,6 +1242,7 @@ let dragDepth = 0;
 document.addEventListener('dragenter', (event) => {
   event.preventDefault();
   dragDepth += 1;
+  elements.dropOverlay.querySelector('strong').textContent = activeTab() ? '松开以打开文档或插入图片' : '松开以打开文档';
   elements.dropOverlay.classList.add('visible');
 });
 document.addEventListener('dragover', (event) => event.preventDefault());
@@ -1299,7 +1257,10 @@ document.addEventListener('drop', async (event) => {
   event.preventDefault();
   dragDepth = 0;
   elements.dropOverlay.classList.remove('visible');
-  const file = event.dataTransfer.files[0];
+  const files = [...event.dataTransfer.files];
+  const imageFiles = files.filter((file) => /\.(png|jpe?g|gif|webp|bmp|avif|svg)$/i.test(file.name));
+  if (imageFiles.length) { await insertImages((filePath) => window.formulaMD.importImageFiles(filePath, imageFiles)); return; }
+  const file = files[0];
   if (!file) return;
   try {
     await openDocument(await window.formulaMD.readFile(file));
@@ -1341,8 +1302,9 @@ window.formulaMD.onDocumentChanged(async (documentData) => {
 window.formulaMD.onDocumentError((error) => {
   showToast(typeof error === 'string' ? error : error?.message || '文档读取失败');
 });
-window.formulaMD.onFocusSearch(() => {
+window.formulaMD.onFocusSearch(async () => {
   if (!activeTab()) return;
+  if (await window.formulaMD.focusNativeSearch()) return;
   elements.searchInput.focus();
   elements.searchInput.select();
 });
@@ -1356,7 +1318,9 @@ window.formulaMD.onCloseTab(() => closeTab());
 window.formulaMD.onSwitchTab(switchRelativeTab);
 window.formulaMD.onSaveRequested((closeAfter) => saveDocument(closeAfter));
 
-initializeTheme();
+setupSettings();
+setupImageActions();
+initializeTheme().catch((error) => showToast(error.message));
 loadRecents();
 restoreSession();
 window.MathJax.startup.promise

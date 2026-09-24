@@ -1,0 +1,25 @@
+:root[data-native-ui='true'] .toolbar { display: none; }
+:root[data-native-ui='true'] .workspace { grid-template-rows: 12px auto minmax(0, 1fr) 34px; }
+:root[data-native-ui='true'] .tab-bar { grid-row: 2; }
+:root[data-native-ui='true'] .sidebar { padding-top: 24px; }
+:root[data-native-ui='true'] .sidebar .document-actions { display: none; }
+:root[data-native-ui='true'] .sidebar .drag-region { display: none; }
+:root[data-platform='win32'] .app-shell { background: var(--chrome-tint); }
+#paletteSelect { display: none; }
+.toolbar-actions { gap: 8px; }
+.image-placeholder { display: inline-block; padding: 12px 16px; margin: 8px 0; border: 1px dashed var(--border); border-radius: 8px; color: var(--text-secondary); font-size: 0.9em; }
+.markdown-body img { display: inline-block; max-width: 100%; height: auto; vertical-align: middle; }
+#settingsDialog { width: min(540px, calc(100vw - 48px)); max-height: calc(100vh - 60px); padding: 26px; overflow: auto; border: 1px solid var(--border); border-radius: 20px; color: var(--text); background: var(--bg); box-shadow: var(--shadow); }
+#settingsDialog::backdrop { background: #0005; }
+.settings-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.settings-heading h2 { font-size: 19px; margin: 0; }
+.setting-row { display: flex; align-items: center; gap: 12px; margin: 14px 0; }
+.setting-row > span { min-width: 112px; }
+.setting-row select { flex: 1; min-width: 0; }
+.setting-row input[type='range'] { flex: 1; accent-color: var(--accent); }
+.setting-row input[type='text'] { width: 105px; font-family: monospace; }
+.setting-row input[type='color'] { width: 48px; height: 32px; padding: 2px; }
+#settingsDialog input, #settingsDialog select, #settingsDialog button { color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 6px 9px; }
+#settingsDialog [aria-invalid='true'] { outline: 2px solid #ba3348; }
+.remote-setting { display: flex; align-items: center; gap: 9px; margin-top: 22px; font-size: 13px; }
+.settings-note { color: var(--text-secondary); font-size: 12px; line-height: 1.7; margin: 18px 0; }

@@ -1,62 +1,73 @@
-# Formula MD
+# Formula MD 2.0.0
 
-Formula MD 是一个面向 macOS 和 Windows 的离线 Markdown + LaTeX 阅读器。它使用 MathJax 排版数学公式，并在 Markdown 解析前保护公式源码，避免下划线、星号和反斜杠被 Markdown 语法提前改写。
+Formula MD 是面向 macOS 和 Windows 的 Markdown + LaTeX 阅读器／编辑器。Markdown、代码高亮和 MathJax 数学排版全部在本机完成；网络图片默认关闭，可在设置中单独开启。
 
 ## 功能
 
-- 支持 `$...$`、`$$...$$`、`\\(...\\)`、`\\[...\\]` 和 AMS 环境
-- 支持公式编号、`\\label` / `\\eqref`、矩阵、自定义宏、物理和化学扩展
-- 完全离线的 Markdown、代码高亮与数学排版
-- 打开、拖放、最近文档、目录导航、全文搜索、深浅主题
-- 新拟物与 Liquid Glass 融合的导航和控件：同色材质、柔和双向阴影、内凹选中态、macOS 原生半透明背景与玻璃按压回弹
-- 浏览器式多标签页，可同时打开、切换和关闭多份文档
-- 每个标签独立记忆阅读位置、编辑位置与光标，会话重启后自动恢复
-- 阅读/编辑模式切换，左侧 Markdown 与围栏代码语法高亮、右侧 LaTeX 实时预览
-- 行号、光标位置、`Command/Ctrl-S` 保存与未保存关闭保护
-- 将当前排版后的正文保存为带页码的 A4 PDF
-- 监听源文件变化并自动重新排版
-- 文档内容经过清理，渲染进程与系统文件能力隔离
+- 支持 `$...$`、`$$...$$`、`\\(...\\)`、`\\[...\\]` 和 AMS 环境，以及公式编号、引用、矩阵、自定义宏、物理与化学扩展。
+- 多标签阅读和编辑，各标签记忆阅读位置、光标和编辑位置；支持会话恢复、源文件监视、目录、搜索及双向滚动同步。
+- 显示本地、内嵌及可选网络图片，支持选择文件、拖入和粘贴图片，导入时自动生成可移植的相对路径。
+- macOS 26+ 的主工具栏使用真正的 AppKit Liquid Glass 按钮、分段控件和搜索框，外观设置使用原生窗口与系统控件。
+- 保留 12 套配色，分别记住浅色和深色选择，可自定义强调色、界面底色、正文底色、文字颜色。
+- 可调整外围背景透明度，正文、编辑区、公式、文字和图片保持不透明；支持系统减少透明度、减少动态效果和增强对比度。
+- 支持未保存关闭保护，以及包含图片和公式、带页码的 A4 PDF 导出。
 
-## 开发运行
+## 图片
 
-需要 Node.js 20 或更高版本。
+相对路径以 Markdown 文件的目录为基准。例如：
 
-```bash
-npm install
-npm start
+```markdown
+![实验装置](<images/实验装置.png>)
+![实验结果][result]
+
+[result]: <实验记录.assets/结果.png>
 ```
 
-可以直接打开样例文件 `examples/latex-showcase.md` 检查公式支持。
+同时支持本地绝对路径、`file:` 地址、内嵌 `data:image/...` 和清理后的 HTML `<img>`。格式包括 PNG、JPEG、GIF、WebP、BMP、AVIF 和 SVG，每张图片上限 20 MB。SVG 以图片方式显示，不执行脚本或嵌入 HTML。
 
-## 测试与构建
+打开文档后，用工具栏或「编辑 → 插入图片…」（`Cmd/Ctrl+Shift+I`）选择图片，也可以将图片拖入窗口或粘贴剪贴板图片。导入内容复制到 `<文档名>.assets/`，文件名包含内容摘要；同名源文件不会互相覆盖。将 Markdown 和对应资源目录一起移动即可保留图片引用。阅读模式插入图片会进入编辑模式。
+
+「外观与图片设置」中的网络开关默认关闭。开启后仅下载 HTTP／HTTPS 图片，不使用浏览器登录凭据；请求有 15 秒超时、20 MB 上限和 5 次重定向限制。关闭开关会取消加载。缺失、损坏或被禁用的图片显示说明；导出 PDF 等待图片完成处理，失败项保留占位说明。
+
+可打开 `examples/images-showcase.md` 和 `examples/latex-showcase.md` 查看示例。
+
+## 外观设置
+
+通过工具栏设置按钮或 `Cmd/Ctrl+,` 打开设置：
+
+- 显示模式：跟随系统、浅色、深色。两种明暗模式分别记住最近使用的预设。
+- 配色：保留 12 套预设；四项自定义颜色按预设保存，可恢复当前预设的颜色。
+- 背景透明度：0–100%，默认 20%；仅调整外围背景的色彩遮罩。Apple 原生控件的玻璃折射、模糊和最终透明度由系统管理。
+- 网络图片：默认关闭，开启后对当前及后续打开的文档生效。
+
+设置由主进程原子写入用户数据目录的 `settings.json`，升级时迁移既有配色与旧存储值。屏幕配色和玻璃效果不会进入 PDF，打印保持不透明白底与固定配色。
+
+## 平台与构建
+
+- macOS 13+；macOS 26+ 使用原生 Liquid Glass，13–15 使用兼容界面。发布包为 Apple Silicon arm64。
+- Windows x64 使用相同的图片、编辑和设置能力，以及兼容控件；Windows 11 22H2+ 可使用系统背景材质，较早系统使用兼容背景。
+- Node.js 24（最低 22.12）、pnpm 11.17.0、Electron 44.4.5。macOS 构建还需要 Xcode 26+ 和 macOS 26 SDK。
 
 ```bash
-npm test
-npm run pack  # 生成未封装的 .app
-npm run dist  # 生成 DMG 和 ZIP
-npm run pack:win  # 生成 Windows x64 未封装目录
-npm run dist:win  # 生成 Windows x64 安装程序
+pnpm install --frozen-lockfile
+pnpm start                    # 编译 macOS 桥接并启动
+pnpm test                     # 纯逻辑测试
+pnpm test:appearance           # 隔离会话的真实 Electron 功能检查
+pnpm bench:appearance         # 长公式文档的短时性能样本
+pnpm run pack                 # macOS .app
+pnpm run dist --publish never # macOS DMG + ZIP
+pnpm run pack:win             # Windows x64 未封装目录
+pnpm run dist:win --publish never
 ```
 
-构建产物位于 `dist/`。macOS 构建未签名时适合本机使用；公开分发时需要配置 Apple Developer ID 签名与公证。Windows 安装程序未进行代码签名，首次运行时可能触发 Microsoft Defender SmartScreen 提示。
+原生代码只使用 Node-API 和公共 AppKit API，编译结果位于 `src/native/` 并由打包器放入 `app.asar.unpacked`。Windows 无需编译或加载该模块。`FORMULA_MD_DISABLE_NATIVE=1` 可在开发检查中强制验证兼容界面。
 
-## 新拟物玻璃界面与性能
+界面检查的报告、截图和 PDF 位于 `dist/qa-v2/`；性能样本位于 `dist/glass-qa/`。检查不使用真实用户会话，CI 覆盖 macOS 26、macOS 15 和 Windows x64。性能数据仅代表所用机器和短时样本。
 
-设计参考 [StyleKit 新拟物派](https://www.stylekit.top/styles/neumorphism/showcase#rules) 的同色表面、左上方光源和凸起／内凹层次，并保留 [Apple 材质指南](https://developer.apple.com/design/human-interface-guidelines/materials) 启发的玻璃透光感。沿用原有灰白／深灰基调，以及浅色主题的 `#146b5c` 和深色主题的 `#66c4aa` 绿色强调色。按钮与背景采用同色材质，绿色用于文字、图标、目录标记和焦点；正文与源码使用稳定、不透明的底色。屏幕材质样式独立放在 `src/renderer/glass.css`，不会进入 PDF 排版。
+2.0.0 沿用未进行 Developer ID 签名／公证、未进行 Windows 代码签名的发布方式，首次运行可能出现系统提示。Release 同时提供安装包、blockmap 和 SHA-256 校验清单。
 
-macOS 使用 Electron 自带的 `vibrancy`，并让窗口材质跟随焦点和应用主题。工具栏和按钮以左上亮、右下暗的成对阴影呈现柔和凸起；搜索框、模式切换轨道、选中标签和目录呈内凹层次。网页层保留半透明填充、贴合底色的单一玻璃轮廓和两层局部光线。光线随指针流动，按钮在原位轻微形变，按压时压缩并转为内凹阴影，松开后弹性回位；文字和点击区域保持固定。阅读／编辑透镜在固定凹槽中滑动并轻微拉伸，欢迎页玻璃卡片嵌在柔和凹槽中，悬停时减弱投影。这是基于 Electron 37 的视觉近似，并非调用 Apple 原生 Liquid Glass 控件，也不进行物理光线折射运算。
+## 实现边界
 
-常规阅读只保留工具栏一处 CSS 背景模糊；欢迎页额外启用一张小卡片。控件不叠加背景模糊，没有 WebGL、动画库、常驻 `requestAnimationFrame` 循环或持续改变模糊半径的动画。所有控件复用同一对光斑与亮带；只在输入事件后请求一帧更新，过渡由 CSS transform / opacity 和有限时长的阴影变化完成，回弹结束后停止。离开、滚动、失焦和窗口隐藏时清理；轮廓与底色在同一个表面上形变。支持系统“减少动态效果”“减少透明度”和增强对比度，增强对比度时为控件补充明确边界；Windows 使用不依赖 macOS 材质的同色底色。
+所有文档 HTML 经 DOMPurify 清理。图片通过主进程受控协议提供，保留严格 CSP、渲染进程沙箱和上下文隔离。网络图片开关不会向正文脚本提供网络访问能力。
 
-可在 macOS 的图形会话中运行实际窗口检查与本机基准：
-
-```bash
-pnpm test:appearance
-pnpm bench:appearance
-```
-
-窗口检查使用隔离的临时会话和文档，覆盖深浅主题、900×600 最小窗口、公式、搜索、编辑保存、指针反馈、轮廓对齐、按压时文字与点击区域稳定、回弹停止、辅助功能降级及打印样式。设置 `FORMULA_MD_CAPTURE_MOTION=1` 运行窗口检查还会记录按钮动效帧及实际时间戳。截图、检查结果和 PDF 位于 `dist/glass-qa/`。基准使用 20 份公式样例拼接的长文档，对静置、滚动和指针交互各测两轮；指针阶段隔离桌面输入，每帧注入一个 DOM PointerEvent，并确认光效实际处于激活状态。记录 Chromium 主线程耗时、帧间隔、JS 堆和进程指标；结果只代表当前机器上的短时样本。可通过 `FORMULA_MD_BENCH_ROOT` 指向另一份使用相同依赖的源码、`FORMULA_MD_BENCH_LABEL` 指定结果名称，以便比较改动前后。
-
-## 支持范围
-
-MathJax 实现的是 LaTeX 数学模式及常用扩展，不是完整的 TeX 文档引擎。因此它不会执行 `\\documentclass`、读写本地文件、运行任意 TeX 宏包或排版整篇 `.tex` 文档。这一限制让阅读器可以安全、快速地显示 Markdown 中的数学内容。
+MathJax 实现的是 LaTeX 数学模式及常用扩展，并非完整的 TeX 文档引擎。不会执行 `\\documentclass`、读写本地文件或运行任意 TeX 宏包。
