@@ -10,4 +10,7 @@ const result = spawnSync(process.execPath, [path.join(root, 'scripts/run-appeara
   stdio: 'inherit', env: { ...process.env, FORMULA_MD_APP_PATH: packed, FORMULA_MD_QA_LABEL: `packaged-${process.platform}` }
 });
 if (result.error) throw result.error;
-process.exit(result.status ?? 1);
+if (result.status !== 0) process.exit(result.status ?? 1);
+const executableCheck = spawnSync(process.execPath, [path.join(root, 'scripts/check-executable.cjs')], { stdio: 'inherit' });
+if (executableCheck.error) throw executableCheck.error;
+process.exit(executableCheck.status ?? 1);

@@ -24,6 +24,8 @@ const MAX_FILE_SIZE = 20 * 1024 * 1024;
 // During development Electron otherwise uses the shared name/user-data folder
 // "Electron", which can leak recent files between unrelated local apps.
 app.setName('Formula MD');
+if (process.env.FORMULA_MD_QA_PROFILE) app.setPath('userData', path.resolve(process.env.FORMULA_MD_QA_PROFILE));
+if (process.platform === 'darwin' && process.env.FORMULA_MD_QA_HIDDEN === '1') app.setActivationPolicy('prohibited');
 
 let mainWindow = null;
 const fileWatchers = new Map();
@@ -563,7 +565,7 @@ function createWindow() {
   mainWindow.on('focus', () => mainWindow.webContents.send('appearance:changed', windowAppearance()));
   mainWindow.on('blur', () => mainWindow.webContents.send('appearance:changed', windowAppearance()));
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
-  mainWindow.once('ready-to-show', () => mainWindow?.show());
+  mainWindow.once('ready-to-show', () => { if (process.env.FORMULA_MD_QA_HIDDEN !== '1') mainWindow?.show(); });
   mainWindow.on('close', (event) => {
     if (forceClose || !hasUnsavedChanges) return;
     const response = dialog.showMessageBoxSync(mainWindow, {
