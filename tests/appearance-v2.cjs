@@ -65,9 +65,12 @@ app.on('browser-window-created', (_event, window) => {
           assert.equal(native.controls.filter((item) => item.class === 'NSButton').length, 6);
           assert.equal(native.controls.some((item) => item.glass), false);
           assert.equal(native.glassGroups.length, 3);
-          assert.equal(native.glassGroups.every((item) => item.style === 'clear'), true);
+          const appearance = await run('currentAppearance');
+          const expectedStyle = appearance.reducedTransparency || appearance.highContrast ? 'regular' : 'clear';
+          assert.equal(native.glassGroups.every((item) => item.style === expectedStyle), true,
+            JSON.stringify({ expectedStyle, groups: native.glassGroups, reducedTransparency: appearance.reducedTransparency, highContrast: appearance.highContrast }));
           assert.equal(Number.isFinite(native.nativeChromeInsetTop), true);
-          checks.push('Actual NSToolbar, six native buttons and three clear glass groups attached');
+          checks.push('Actual NSToolbar, six native buttons and three glass groups respect accessibility');
           bridge.perform(JSON.stringify({ id: 'settings' }));
           await pause(150);
           assert.equal(JSON.parse(bridge.diagnostics()).settingsClass, 'NSPanel');
