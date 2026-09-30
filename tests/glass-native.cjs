@@ -63,8 +63,28 @@ app.on('browser-window-created', (_event, window) => {
       if (!bridge.isSupported()) { checks.push('Native glass unavailable on this macOS; compatibility is covered separately'); finish(); return; }
       await run('window.MathJax.startup.promise.then(() => true)');
       await wait('Boolean(currentAppearance)');
+      const hostPreferences = await run(`({ appearance:currentAppearance,
+        reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches,
+        reducedTransparency:matchMedia('(prefers-reduced-transparency: reduce)').matches })`);
+      const emulatePreferences = hostPreferences.reducedMotion || hostPreferences.reducedTransparency
+        || hostPreferences.appearance.reducedMotion || hostPreferences.appearance.reducedTransparency || hostPreferences.appearance.highContrast;
+      const normalMedia = emulatePreferences ? [
+        { name:'prefers-reduced-motion', value:'no-preference' },
+        { name:'prefers-reduced-transparency', value:'no-preference' },
+        { name:'prefers-contrast', value:'no-preference' }
+      ] : [];
+      if (emulatePreferences) {
+        await check('Host accessibility preferences disable renderer motion', "!document.documentElement.classList.contains('glass-motion')");
+        assert.equal(JSON.parse(bridge.diagnostics()).glassGroups.every(group=>!group.interactive), true);
+        console.log('Synthetic motion checks emulate ordinary preferences in this isolated window; host preferences remain unchanged', hostPreferences);
+        contents.debugger.attach('1.3');
+        await contents.debugger.sendCommand('Emulation.setEmulatedMedia', { features:normalMedia });
+      }
       // Keep synthetic input reproducible while the user works in another app.
-      await run("window.formulaMD.onAppearanceChanged(appearance=>applyAppearance({...appearance,active:true})); for(const type of ['pointermove','pointerleave','pointerdown','pointerup','blur']) window.addEventListener(type,event=>{if(event.isTrusted)event.stopImmediatePropagation();},true); true");
+      await run(`window.glassQaEmulatePreferences = ${Boolean(emulatePreferences)};
+        window.formulaMD.onAppearanceChanged(appearance=>applyAppearance({...appearance,active:true,
+          ...(window.glassQaEmulatePreferences ? {reducedMotion:false,reducedTransparency:false,highContrast:false} : {})}));
+        for(const type of ['pointermove','pointerleave','pointerdown','pointerup','blur']) window.addEventListener(type,event=>{if(event.isTrusted)event.stopImmediatePropagation();},true); true`);
       assert.equal(await run('currentAppearance.nativeUI'), true);
       window.setSize(1260, 760); window.setPosition(60, 50); window.setAlwaysOnTop(true, 'floating'); window.show(); window.focus();
       await run("window.formulaMD.writeSettings({theme:'light',chromeOpacity:0})");
@@ -122,14 +142,13 @@ app.on('browser-window-created', (_event, window) => {
       await run('closeTab(state.activePath)'); await pause(700);
       await check('Closing the active tab repositions the lens', "(()=>{const lens=document.querySelector('.glass-tab-lens').getBoundingClientRect();const tab=elements.tabList.querySelector('.active').getBoundingClientRect();return Math.abs(lens.x-tab.x)<1;})()");
       await run(`switchTab(${JSON.stringify(first)})`);
-      contents.debugger.attach('1.3');
-      await contents.debugger.sendCommand('Emulation.setEmulatedMedia', { features: [{name:'prefers-reduced-motion',value:'reduce'}] });
+      if (!contents.debugger.isAttached()) contents.debugger.attach('1.3');
+      await contents.debugger.sendCommand('Emulation.setEmulatedMedia', { features: [...normalMedia.filter(feature=>feature.name !== 'prefers-reduced-motion'), {name:'prefers-reduced-motion',value:'reduce'}] });
       await wait("!document.documentElement.classList.contains('glass-motion')");
       await pointer('.document-tab.active', 'pointermove');
       await check('Reduced motion disables tracking and deformation', "!document.documentElement.classList.contains('glass-motion') && !document.querySelector('.glass-tracking') && getComputedStyle(document.querySelector('.glass-surface')).transitionDuration === '0s'");
-      await contents.debugger.sendCommand('Emulation.setEmulatedMedia', { features: [] });
+      await contents.debugger.sendCommand('Emulation.setEmulatedMedia', { features: normalMedia });
       await wait("document.documentElement.classList.contains('glass-motion')");
-      contents.debugger.detach();
       const appearance = await run('currentAppearance');
       for (const flags of [{ reducedTransparency:true }, { highContrast:true }, { reducedMotion:true }, { active:false }]) {
         await run(`applyAppearance({...currentAppearance,${Object.entries(flags).map(([key,value])=>`${key}:${value}`).join(',')}}); true`);
@@ -137,6 +156,13 @@ app.on('browser-window-created', (_event, window) => {
         assert.equal(JSON.parse(bridge.diagnostics()).glassGroups.every(group=>!group.interactive), true);
         await check(`Accessibility/activity override ${JSON.stringify(flags)} stops motion`, "!document.documentElement.classList.contains('glass-motion')");
         await run(`applyAppearance(${JSON.stringify(appearance)}); true`); bridge.sync(JSON.stringify({appearance}));
+      }
+      contents.debugger.detach();
+      if (emulatePreferences) {
+        await run('window.glassQaEmulatePreferences = false; window.formulaMD.getAppearance().then(applyAppearance)');
+        if (process.env.FORMULA_MD_QA_REQUIRE_SCREEN === '1') throw new Error('Required desktop transparency capture cannot bypass host accessibility preferences');
+        checks.push('Desktop transparency not verified on this host: accessibility preferences prevent ordinary glass');
+        finish(); return;
       }
       if (systemPreferences.getMediaAccessStatus('screen') !== 'granted') {
         if (process.env.FORMULA_MD_QA_REQUIRE_SCREEN === '1') throw new Error('Required desktop transparency capture is unavailable');
