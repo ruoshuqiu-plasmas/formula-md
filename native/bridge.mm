@@ -24,6 +24,8 @@ static NSString *hexColor(NSColor *value) {
 @property(weak) NSWindow *window;
 @property(weak) NSView *webView;
 @property(strong) NSToolbar *toolbar;
+@property(strong) NSMutableArray<NSView *> *glassGroups;
+@property CGFloat lastChromeInset;
 @property(strong) NSMutableDictionary<NSString *, NSControl *> *controls;
 @property(strong) NSPanel *panel;
 @property(strong) NSMutableDictionary<NSString *, NSControl *> *settingsControls;
@@ -35,12 +37,18 @@ static NSString *hexColor(NSColor *value) {
 - (void)showSettings;
 - (void)refreshSettings;
 - (void)dispose;
+- (CGFloat)chromeInset;
+- (void)layoutChanged:(NSNotification *)notification;
 @end
 @implementation FMController
 - (void)attach:(NSView *)view {
   self.window = view.window;
   self.webView = view;
   self.controls = [NSMutableDictionary dictionary];
+  self.glassGroups = [NSMutableArray array];
+  self.lastChromeInset = -1;
+  self.window.styleMask |= NSWindowStyleMaskFullSizeContentView;
+  self.window.titlebarAppearsTransparent = YES;
   self.toolbar = [[NSToolbar alloc] initWithIdentifier:@"formula-md-toolbar-v2"];
   self.toolbar.delegate = self;
   self.toolbar.displayMode = NSToolbarDisplayModeIconOnly;
@@ -48,9 +56,29 @@ static NSString *hexColor(NSColor *value) {
   self.window.toolbar = self.toolbar;
   self.window.toolbarStyle = NSWindowToolbarStyleUnified;
   self.window.titleVisibility = NSWindowTitleVisible;
+  self.window.titlebarSeparatorStyle = NSTitlebarSeparatorStyleNone;
+  for (NSString *name in @[NSWindowDidResizeNotification, NSWindowDidEnterFullScreenNotification, NSWindowDidExitFullScreenNotification, NSWindowDidChangeBackingPropertiesNotification]) {
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(layoutChanged:) name:name object:self.window];
+  }
+  self.webView.postsFrameChangedNotifications = YES;
+  [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(layoutChanged:) name:NSViewFrameDidChangeNotification object:self.webView];
+  [NSWorkspace.sharedWorkspace.notificationCenter addObserver:self selector:@selector(accessibilityChanged:) name:NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification object:nil];
+  [self layoutChanged:nil];
 }
+- (CGFloat)chromeInset {
+  NSRect layout = [self.webView convertRect:self.window.contentLayoutRect fromView:self.window.contentView];
+  CGFloat inset = self.webView.isFlipped ? NSMinY(layout) - NSMinY(self.webView.bounds) : NSMaxY(self.webView.bounds) - NSMaxY(layout);
+  return MAX(0, MIN(120, ceil(inset)));
+}
+- (void)layoutChanged:(NSNotification *)notification {
+  CGFloat inset = [self chromeInset];
+  if (inset == self.lastChromeInset) return;
+  self.lastChromeInset = inset;
+  emit(@{@"layout": @{@"chromeInsetTop": @(inset)}});
+}
+- (void)accessibilityChanged:(NSNotification *)notification { emit(@{@"appearanceChanged": @YES}); }
 - (NSArray<NSToolbarItemIdentifier> *)toolbarDefaultItemIdentifiers:(NSToolbar *)toolbar {
-  return @[@"new", @"open", NSToolbarFlexibleSpaceItemIdentifier, @"mode", @"save", @"image", @"pdf", NSToolbarFlexibleSpaceItemIdentifier, @"search", @"settings"];
+  return @[@"files", NSToolbarFlexibleSpaceItemIdentifier, @"mode", @"document", NSToolbarFlexibleSpaceItemIdentifier, @"search", @"settings"];
 }
 - (NSArray<NSToolbarItemIdentifier> *)toolbarAllowedItemIdentifiers:(NSToolbar *)toolbar { return [self toolbarDefaultItemIdentifiers:toolbar]; }
 - (NSToolbarItem *)toolbar:(NSToolbar *)toolbar itemForItemIdentifier:(NSToolbarItemIdentifier)identifier willBeInsertedIntoToolbar:(BOOL)inserted {
@@ -73,21 +101,36 @@ static NSString *hexColor(NSColor *value) {
     item.label = @"查找";
     item.view = field;
     self.controls[identifier] = field;
-  } else {
+  } else if (@available(macOS 26.0, *)) {
+    NSArray *keys = [identifier isEqual:@"files"] ? @[@"new", @"open"] : ([identifier isEqual:@"document"] ? @[@"save", @"image", @"pdf"] : @[@"settings"]);
     NSDictionary *labels = @{@"new": @"新建 Markdown", @"open": @"打开 Markdown", @"save": @"保存", @"image": @"插入图片", @"pdf": @"导出 PDF", @"settings": @"外观与图片设置"};
     NSDictionary *symbols = @{@"new": @"doc.badge.plus", @"open": @"folder", @"save": @"square.and.arrow.down", @"image": @"photo.badge.plus", @"pdf": @"doc.richtext", @"settings": @"slider.horizontal.3"};
-    NSString *label = labels[identifier] ?: identifier;
-    NSButton *button = [NSButton buttonWithTitle:label target:self action:@selector(command:)];
-    button.identifier = identifier;
-    button.toolTip = label;
-    button.accessibilityLabel = label;
-    button.image = [NSImage imageWithSystemSymbolName:symbols[identifier] accessibilityDescription:label];
-    button.imagePosition = NSImageOnly;
-    if (@available(macOS 26.0, *)) button.bezelStyle = NSBezelStyleGlass;
-    item.label = label;
-    item.view = button;
-    self.controls[identifier] = button;
-    // The button supplies its own system glass bezel.
+    NSMutableArray *buttons = [NSMutableArray array];
+    for (NSString *key in keys) {
+      NSButton *button = [NSButton buttonWithTitle:@"" target:self action:@selector(command:)];
+      button.identifier = key;
+      button.toolTip = labels[key];
+      button.accessibilityLabel = labels[key];
+      button.image = [NSImage imageWithSystemSymbolName:symbols[key] accessibilityDescription:labels[key]];
+      button.imagePosition = NSImageOnly;
+      button.bordered = NO;
+      [button.widthAnchor constraintEqualToConstant:36].active = YES;
+      [button.heightAnchor constraintEqualToConstant:30].active = YES;
+      self.controls[key] = button;
+      [buttons addObject:button];
+    }
+    NSStackView *content = [NSStackView stackViewWithViews:buttons];
+    content.spacing = 2;
+    content.edgeInsets = NSEdgeInsetsMake(3, 5, 3, 5);
+    NSGlassEffectView *glass = [[NSGlassEffectView alloc] initWithFrame:NSMakeRect(0, 0, keys.count * 38 + 8, 36)];
+    glass.identifier = identifier;
+    glass.style = NSGlassEffectViewStyleClear;
+    glass.cornerRadius = 18;
+    glass.contentView = content;
+    item.label = [identifier isEqual:@"files"] ? @"文档操作" : ([identifier isEqual:@"document"] ? @"当前文档" : labels[@"settings"]);
+    item.view = glass;
+    [self.glassGroups addObject:glass];
+    // The group is the sole glass surface; its buttons remain native controls.
     item.bordered = NO;
   }
   return item;
@@ -133,11 +176,22 @@ static NSString *hexColor(NSColor *value) {
   if (self.panel.appearance != appearance) self.panel.appearance = appearance;
   NSColor *tint = color(self.appearance[@"colors"][@"accent"]);
   for (NSControl *control in self.controls.allValues) {
-    if ([control isKindOfClass:NSButton.class] && ![[(NSButton *)control bezelColor] isEqual:tint]) [(NSButton *)control setBezelColor:tint];
+    if ([control isKindOfClass:NSButton.class]) [(NSButton *)control setContentTintColor:tint];
+  }
+  if (@available(macOS 26.0, *)) {
+    BOOL opaque = [self.appearance[@"reducedTransparency"] boolValue] || [self.appearance[@"highContrast"] boolValue];
+    for (NSGlassEffectView *glass in self.glassGroups) {
+      glass.style = opaque ? NSGlassEffectViewStyleRegular : NSGlassEffectViewStyleClear;
+      glass.tintColor = [color(self.appearance[@"colors"][@"chrome"]) colorWithAlphaComponent:opaque ? 1 : 0.08];
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 270000
+      if (@available(macOS 27.0, *)) glass.effectIsInteractive = !opaque && ![self.appearance[@"reducedMotion"] boolValue] && !NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion && [self.appearance[@"active"] boolValue];
+#endif
+    }
   }
   NSSearchField *search = (NSSearchField *)self.controls[@"search"];
   search.toolTip = [NSString stringWithFormat:@"在文档中查找 %@", self.ui[@"searchCount"] ?: @""];
   [self refreshSettings];
+  [self layoutChanged:nil];
 }
 - (NSStackView *)row:(NSString *)label control:(NSView *)control {
   NSTextField *text = [NSTextField labelWithString:label];
@@ -246,9 +300,12 @@ static NSString *hexColor(NSColor *value) {
 }
 - (void)resetColors:(id)sender { emit(@{@"settings": @{@"resetPalette": self.appearance[@"palette"]}}); }
 - (void)dispose {
+  [NSNotificationCenter.defaultCenter removeObserver:self];
+  [NSWorkspace.sharedWorkspace.notificationCenter removeObserver:self];
   [self.panel close]; self.panel = nil;
   self.window.toolbar = nil; self.toolbar.delegate = nil; self.toolbar = nil;
   [self.controls removeAllObjects]; self.window = nil;
+  [self.glassGroups removeAllObjects];
 }
 @end
 static FMController *controller;
@@ -294,6 +351,7 @@ static napi_value syncState(napi_env env, napi_callback_info info) { [controller
 static napi_value showSettings(napi_env env, napi_callback_info info) { [controller showSettings]; return undefined(env); }
 static napi_value focusSearch(napi_env env, napi_callback_info info) { [controller.window makeKeyAndOrderFront:nil]; [controller.window makeFirstResponder:controller.controls[@"search"]]; return undefined(env); }
 static napi_value dispose(napi_env env, napi_callback_info info) { stop(); return undefined(env); }
+static napi_value metrics(napi_env env, napi_callback_info info) { return json(env, @{@"nativeChromeInsetTop": @([controller chromeInset]), @"reducedMotion": @(NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion)}); }
 static napi_value diagnostics(napi_env env, napi_callback_info info) {
   NSMutableArray *controls = [NSMutableArray array];
   for (NSString *key in controller.controls) {
@@ -301,8 +359,16 @@ static napi_value diagnostics(napi_env env, napi_callback_info info) {
     [controls addObject:@{@"id": key, @"class": NSStringFromClass(control.class), @"enabled": @(control.enabled), @"glass": @([control isKindOfClass:NSButton.class] && [(NSButton *)control bezelStyle] == 16)}];
   }
   NSMutableDictionary *hex = [NSMutableDictionary dictionary];
+  NSMutableArray *groups = [NSMutableArray array];
+  if (@available(macOS 26.0, *)) for (NSGlassEffectView *glass in controller.glassGroups) {
+    BOOL interactive = NO;
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 270000
+    if (@available(macOS 27.0, *)) interactive = glass.effectIsInteractive;
+#endif
+    [groups addObject:@{@"id": glass.identifier, @"style": glass.style == NSGlassEffectViewStyleClear ? @"clear" : @"regular", @"interactive": @(interactive)}];
+  }
   for (NSString *key in @[@"accent", @"chrome", @"page", @"text"]) hex[key] = controller.settingsControls[[key stringByAppendingString:@"Hex"]].stringValue ?: @"";
-  return json(env, @{@"attached": @(controller.window.toolbar == controller.toolbar && controller != nil), @"controls": controls, @"settingsHex": hex, @"settingsClass": controller.panel ? NSStringFromClass(controller.panel.class) : @"", @"title": controller.window.title ?: @""});
+  return json(env, @{@"attached": @(controller.window.toolbar == controller.toolbar && controller != nil), @"controls": controls, @"glassGroups": groups, @"nativeChromeInsetTop": @([controller chromeInset]), @"settingsHex": hex, @"settingsClass": controller.panel ? NSStringFromClass(controller.panel.class) : @"", @"title": controller.window.title ?: @""});
 }
 // Main-process test harness only; never exposed through the renderer bridge.
 static napi_value perform(napi_env env, napi_callback_info info) {
@@ -324,7 +390,8 @@ static napi_value init(napi_env env, napi_value exports) {
     {"isSupported", 0, supported, 0, 0, 0, napi_default, 0}, {"attach", 0, attach, 0, 0, 0, napi_default, 0},
     {"sync", 0, syncState, 0, 0, 0, napi_default, 0}, {"showSettings", 0, showSettings, 0, 0, 0, napi_default, 0},
     {"focusSearch", 0, focusSearch, 0, 0, 0, napi_default, 0}, {"dispose", 0, dispose, 0, 0, 0, napi_default, 0},
-    {"diagnostics", 0, diagnostics, 0, 0, 0, napi_default, 0}, {"perform", 0, perform, 0, 0, 0, napi_default, 0}
+    {"diagnostics", 0, diagnostics, 0, 0, 0, napi_default, 0}, {"perform", 0, perform, 0, 0, 0, napi_default, 0},
+    {"metrics", 0, metrics, 0, 0, 0, napi_default, 0}
   };
   napi_define_properties(env, exports, sizeof(properties) / sizeof(properties[0]), properties);
   napi_add_env_cleanup_hook(env, [](void *) { stop(); }, nullptr);

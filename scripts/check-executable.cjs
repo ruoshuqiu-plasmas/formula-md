@@ -67,10 +67,15 @@ let child, socket, exit, log = '';
     await window.formulaMD.writeSettings({palette:'ultra-violet'});
     const appearance = await window.formulaMD.getAppearance();
     return {nativeUI:appearance.nativeUI,nativeError:appearance.nativeError,palette:appearance.palette,
+      nativeChromeInsetTop:appearance.nativeChromeInsetTop,visibleGlass:Boolean(elements.tabList.querySelector('.glass-surface')),
       imageWidth:elements.article.querySelector('img')?.naturalWidth,math:Boolean(elements.article.querySelector('mjx-container'))};
   })()`);
   assert.equal(result.imageWidth, 100); assert.equal(result.math, true); assert.equal(result.palette, 'ultra-violet');
-  if (process.platform === 'darwin' && Number(os.release().split('.')[0]) >= 25) assert.equal(result.nativeUI, true, result.nativeError || 'Native bridge must load in the packaged binary');
+  if (process.platform === 'darwin' && Number(os.release().split('.')[0]) >= 25) {
+    assert.equal(result.nativeUI, true, result.nativeError || 'Native bridge must load in the packaged binary');
+    assert.equal(result.visibleGlass, true, 'Packaged renderer must contain visible native-path glass');
+    assert.equal(Number.isFinite(result.nativeChromeInsetTop), true);
+  }
   fs.writeFileSync(path.join(output, 'checks.json'), JSON.stringify({passed:true,...result}, null, 2));
   console.log('Actual packaged executable passed:', result);
 })().catch(error => {

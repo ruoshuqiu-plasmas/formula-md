@@ -62,8 +62,12 @@ app.on('browser-window-created', (_event, window) => {
         if (expectedNative) {
           const native = JSON.parse(bridge.diagnostics());
           assert.equal(native.attached, true);
-          assert.equal(native.controls.filter((item) => item.glass && item.class === 'NSButton').length, 6);
-          checks.push('Actual NSToolbar and six AppKit glass buttons attached');
+          assert.equal(native.controls.filter((item) => item.class === 'NSButton').length, 6);
+          assert.equal(native.controls.some((item) => item.glass), false);
+          assert.equal(native.glassGroups.length, 3);
+          assert.equal(native.glassGroups.every((item) => item.style === 'clear'), true);
+          assert.equal(Number.isFinite(native.nativeChromeInsetTop), true);
+          checks.push('Actual NSToolbar, six native buttons and three clear glass groups attached');
           bridge.perform(JSON.stringify({ id: 'settings' }));
           await pause(150);
           assert.equal(JSON.parse(bridge.diagnostics()).settingsClass, 'NSPanel');
@@ -77,6 +81,10 @@ app.on('browser-window-created', (_event, window) => {
       fs.writeFileSync(documentPath, source);
       await run(`window.formulaMD.openRecent(${JSON.stringify(documentPath)}).then(openDocument)`);
       await run('state.imagesReady.then(() => true)');
+      if (await run('currentAppearance.nativeUI')) {
+        await check('Native toolbar inset is applied to chrome without moving document text independently', "parseFloat(getComputedStyle(document.querySelector('.app-shell')).paddingTop) === currentAppearance.nativeChromeInsetTop && elements.tabBar.getBoundingClientRect().top >= currentAppearance.nativeChromeInsetTop");
+        await check('Visible tabs and sidebar have independent glass material', "Boolean(elements.tabList.querySelector('.glass-surface')) && Boolean(elements.outline.querySelector('.glass-surface'))");
+      }
       await check('Relative, absolute, file URL, data, reference and HTML images decode', "[...elements.article.querySelectorAll('img')].length === 6 && [...elements.article.querySelectorAll('img')].every(img => img.complete && img.naturalWidth === 360)");
       await check('MathJax pipeline still renders protected formulas', "Boolean(elements.article.querySelector('mjx-container'))");
       await check('Disabled and missing images show descriptive placeholders', "elements.article.querySelectorAll('.image-placeholder').length === 2");

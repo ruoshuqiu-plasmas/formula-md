@@ -296,8 +296,10 @@ function renderTabs() {
     elements.tabList.append(item);
   }
 
+  window.GlassEffects.syncChrome(true);
   requestAnimationFrame(() => {
     elements.tabList.querySelector('.document-tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    window.GlassEffects.syncChrome();
   });
 }
 
@@ -365,6 +367,7 @@ function buildOutline() {
     elements.outline.append(button);
   });
   elements.outlineSection.hidden = headings.length === 0;
+  window.GlassEffects.syncChrome();
   observeHeadings(headings);
 }
 
@@ -885,6 +888,7 @@ async function loadRecents() {
       elements.welcomeRecents.append(welcomeButton);
     }
   });
+  window.GlassEffects.syncChrome();
 }
 
 function showToast(message) {

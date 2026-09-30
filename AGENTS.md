@@ -4,7 +4,7 @@
 
 ## 项目概览
 
-Formula MD 是一个面向 macOS 和 Windows 的**离线** Markdown + LaTeX 阅读器/编辑器（Electron 应用，版本 2.0.0）。核心能力：用 MathJax 排版数学公式，并在 Markdown 解析前保护公式源码，避免下划线、星号和反斜杠被 Markdown 语法提前改写。
+Formula MD 是一个面向 macOS 和 Windows 的**离线** Markdown + LaTeX 阅读器/编辑器（Electron 应用，版本 2.1.0）。核心能力：用 MathJax 排版数学公式，并在 Markdown 解析前保护公式源码，避免下划线、星号和反斜杠被 Markdown 语法提前改写。
 
 主要功能：
 
@@ -104,6 +104,7 @@ dist/             # 打包产物
 - 纯函数测试覆盖公式保护、高亮、编辑状态、滚动同步、图片资源、外观设置和异步插入位置；`test:appearance` 覆盖真实主进程、预加载和渲染进程流程
 - 修改 `math-protector.js` 等被测模块后务必跑 `npm test`；新纯函数逻辑建议补对应测试
 - 修改玻璃界面可运行 `pnpm test:appearance`，用隔离会话检查真实 macOS Electron 窗口；`pnpm bench:appearance` 记录短时性能样本，产物位于 `dist/glass-qa/`
+- `pnpm preview:glass` 复制外观设置与示例到独立临时目录，可与已安装应用并行；不读取用户的文档会话，不替换本机应用。玻璃优化的整窗截图、动效帧和像素验证位于 `dist/glass-optimization/`。
 - 验证公式渲染效果可打开 `examples/latex-showcase.md` 手动检查
 
 ## 安全注意事项
@@ -124,9 +125,10 @@ MathJax 实现的是 LaTeX 数学模式及常用扩展，不是完整的 TeX 文
 - `src/shared/appearance-settings.js`：12 套配色、版本迁移、合法设置更新和每个预设的颜色覆盖；UMD，供主进程、渲染进程和测试共同使用。
 - `src/shared/insertion-anchor.js`：异步图片插入期间的选区跟踪。不得覆盖用户在等待期间新输入的内容或插入另一标签。
 - `src/renderer/image-ui.js` / `appearance-ui.js`：图片操作和共享外观状态。先在惰性 template 中处理清理后的图片地址，再写入正文；PDF 必须等待图片任务完成。
-- `native/bridge.mm`：仅主进程加载的 Node-API / Objective-C++ 桥接，使用公共 NSToolbar、NSBezelStyleGlass、NSPanel、NSSlider、NSColorWell；禁止私有 API。`scripts/build-native.cjs` 使用 Xcode 26+ 编译到 `src/native/formula-md-native.node`。
+- `native/bridge.mm`：仅主进程加载的 Node-API / Objective-C++ 桥接，使用公共 NSToolbar、NSGlassEffectView、NSPanel、NSSlider、NSColorWell；六个原生按钮放入三个 clear 玻璃组。macOS 27 的 `effectIsInteractive` 需要 SDK 编译检查和运行时版本检查。禁止私有 API。`scripts/build-native.cjs` 使用 Xcode 26+ 编译到 `src/native/formula-md-native.node`。
 - macOS 最低 13；仅 26+ 激活 AppKit 新控件。较早系统和 Windows 保留网页兼容界面。`FORMULA_MD_DISABLE_NATIVE=1` 用于验证回退。
 - 透明度仅影响外围背景，正文和编辑区必须不透明。自定义颜色写入 screen-only 样式元素，避免内联根变量污染 PDF。
 - 新增图片协议仅列入 CSP 的 `img-src`，移除宽泛的 `file:`；保持 `connect-src 'none'`、沙箱和 DOMPurify。
 - `pnpm test:appearance` 运行 `tests/appearance-v2.cjs`；原生能力可用却回退视为失败。整窗视觉检查需包含 AppKit 工具栏，`capturePage` 仅覆盖网页内容。
+- 原生路径还运行 `tests/glass-native.cjs`，检查可见标签与侧栏、动效停止、无障碍及桌面透色。必须用桌面合成截图裁出测试窗口验证透色，窗口单独截图会将后方色彩替换成中性灰。无屏幕捕获权限时明确记录视觉覆盖缺口；`FORMULA_MD_QA_REQUIRE_SCREEN=1` 强制完整视觉验收。测试窗口临时置顶，结束后关闭，不修改系统设置。
 - CI 验证 macOS 26、macOS 15（使用 Xcode 26 SDK）和 Windows x64。产物发布前比对远端资产 SHA-256；Release 草稿资产齐全且验证通过后再发布。

@@ -5,7 +5,7 @@ const path = require('node:path');
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'formula-md-qa-'));
 let exitCode = 0;
 try {
-  const scripts = process.env.FORMULA_MD_QA_HOLD === '1' ? ['appearance-v2.cjs'] : ['appearance-v2.cjs', 'settings-startup.cjs'];
+  const scripts = process.env.FORMULA_MD_QA_HOLD === '1' ? ['appearance-v2.cjs'] : ['appearance-v2.cjs', ...(process.platform === 'darwin' && process.env.FORMULA_MD_DISABLE_NATIVE !== '1' ? ['glass-native.cjs'] : []), 'settings-startup.cjs'];
   for (const script of scripts) {
     const result = spawnSync(require('electron'), [path.resolve(__dirname, '../tests', script)], {
       stdio: 'inherit', env: { ...process.env, FORMULA_MD_QA_PROFILE: profile }

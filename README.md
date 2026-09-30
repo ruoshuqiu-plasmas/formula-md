@@ -1,6 +1,13 @@
-# Formula MD 2.0.0
+# Formula MD 2.1.0
 
 Formula MD 是面向 macOS 和 Windows 的 Markdown + LaTeX 阅读器／编辑器。Markdown、代码高亮和 MathJax 数学排版全部在本机完成；网络图片默认关闭，可在设置中单独开启。
+
+## 2.1.0 更新
+
+- macOS 标题栏与外围背景使用统一的透色材质；六个原生按钮位于三个 clear 玻璃组，macOS 27 可启用原生玻璃交互。
+- 文档标签、最近文档、目录和添加标签提供跟随输入的流光与轻微弹性；标签切换使用共享玻璃选中层，静止阅读时停止动效。
+- 减轻浮雕阴影，保留配色与现有透明度设置；正文、编辑区和 PDF 继续保持不透明。
+- 本次发布提供 macOS Apple Silicon 的 DMG、ZIP、blockmap 和 SHA-256 校验清单。
 
 ## 功能
 
@@ -54,6 +61,7 @@ pnpm start                    # 编译 macOS 桥接并启动
 pnpm test                     # 纯逻辑测试
 pnpm test:appearance           # 隔离会话的真实 Electron 功能检查
 pnpm bench:appearance         # 长公式文档的短时性能样本
+pnpm preview:glass            # 独立数据目录的 macOS 玻璃预览，可与已安装应用并行
 pnpm run pack                 # macOS .app
 pnpm run dist --publish never # macOS DMG + ZIP
 pnpm run pack:win             # Windows x64 未封装目录
@@ -62,9 +70,13 @@ pnpm run dist:win --publish never
 
 原生代码只使用 Node-API 和公共 AppKit API，编译结果位于 `src/native/` 并由打包器放入 `app.asar.unpacked`。Windows 无需编译或加载该模块。`FORMULA_MD_DISABLE_NATIVE=1` 可在开发检查中强制验证兼容界面。
 
+macOS 原生界面使用三个 clear 玻璃按钮组，标签、目录及最近文档提供随输入触发的流光与弹性反馈。macOS 27 且使用相应 SDK 构建时启用原生玻璃交互；较早系统保留可用的系统控件。减少动态效果、减少透明度和提高对比度会关闭相应效果。正文及编辑区保持不透明，静止阅读时不运行持续动效。
+
+`preview:glass` 只复制外观设置和示例文档到临时预览目录，不读取已有文档会话，不修改已安装应用或原始示例。预览窗口标题带有“玻璃预览”，关闭窗口即可退出；目录保留以便复核设置。
+
 界面检查的报告、截图和 PDF 位于 `dist/qa-v2/`；性能样本位于 `dist/glass-qa/`。检查不使用真实用户会话，CI 覆盖 macOS 26、macOS 15 和 Windows x64。性能数据仅代表所用机器和短时样本。
 
-2.0.0 沿用未进行 Developer ID 签名／公证、未进行 Windows 代码签名的发布方式，首次运行可能出现系统提示。Release 同时提供安装包、blockmap 和 SHA-256 校验清单。
+2.1.0 的 macOS 发布包沿用未进行 Developer ID 签名与公证的方式，首次运行可能出现系统提示。Release 同时提供安装包、blockmap 和 SHA-256 校验清单。
 
 ## 实现边界
 

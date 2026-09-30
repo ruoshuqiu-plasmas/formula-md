@@ -483,9 +483,11 @@ async function rebuildMenu() {
 
 function windowAppearance() {
   const resolved = Settings.resolve(settingsState, nativeTheme.shouldUseDarkColors);
+  const nativeMetrics = nativeActive ? JSON.parse(nativeUI.metrics()) : { nativeChromeInsetTop: 0, reducedMotion: false };
   return {
     platform: process.platform, theme: resolved.mode, palette: resolved.palette, colors: resolved.colors,
     settings: readStoredSettings(), nativeUI: nativeActive, nativeError,
+    nativeChromeInsetTop: nativeMetrics.nativeChromeInsetTop, reducedMotion: nativeMetrics.reducedMotion,
     paletteList: Object.entries(Settings.palettes).map(([id, entry]) => ({ id, name: entry.name })),
     reducedTransparency: nativeTheme.prefersReducedTransparency,
     highContrast: nativeTheme.shouldUseHighContrastColors,
@@ -499,7 +501,7 @@ function syncWindowAppearance() {
   if (snapshot === appearanceSnapshot) return;
   appearanceSnapshot = snapshot;
   const opaque = appearance.reducedTransparency || appearance.highContrast;
-  if (process.platform === 'darwin') mainWindow.setVibrancy(opaque ? null : 'under-window');
+  if (process.platform === 'darwin') mainWindow.setVibrancy(opaque ? null : (nativeActive ? 'sidebar' : 'under-window'));
   if (supportsWindowsBackdrop) {
     try { mainWindow.setBackgroundMaterial(opaque ? 'none' : 'acrylic'); } catch { /* Older Windows uses the CSS background. */ }
   }
@@ -531,7 +533,7 @@ function createWindow() {
     minHeight: 600,
     show: false,
     title: 'Formula MD',
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#202528' : '#edf1f4',
+    backgroundColor: process.platform === 'darwin' && !nativeTheme.prefersReducedTransparency && !nativeTheme.shouldUseHighContrastColors ? '#00000000' : Settings.resolve(settingsState, nativeTheme.shouldUseDarkColors).colors.chrome,
     ...(process.platform === 'darwin'
       ? {
           titleBarStyle: nativeUI ? 'default' : 'hiddenInset',
@@ -555,15 +557,21 @@ function createWindow() {
     try {
       nativeUI.attach(mainWindow.getNativeWindowHandle(), (json) => {
         const event = JSON.parse(json);
-        if (event.settings) writeStoredSettings(event.settings).catch((error) => mainWindow?.webContents.send('document:error', error.message));
+        if (event.layout || event.appearanceChanged) syncWindowAppearance();
+        else if (event.settings) writeStoredSettings(event.settings).catch((error) => mainWindow?.webContents.send('document:error', error.message));
         else dispatchCommand(event.command, event.value);
       });
       nativeActive = true;
     } catch (error) { nativeError = error.message; nativeActive = false; console.error('AppKit attachment:', error.message); }
   }
   syncWindowAppearance();
-  mainWindow.on('focus', () => mainWindow.webContents.send('appearance:changed', windowAppearance()));
-  mainWindow.on('blur', () => mainWindow.webContents.send('appearance:changed', windowAppearance()));
+  mainWindow.on('focus', syncWindowAppearance);
+  mainWindow.on('blur', syncWindowAppearance);
+  mainWindow.on('page-title-updated', (event, title) => {
+    if (process.env.FORMULA_MD_GLASS_PREVIEW !== '1') return;
+    event.preventDefault();
+    mainWindow.setTitle(title.replace(/Formula MD$/, 'Formula MD · 玻璃预览'));
+  });
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   mainWindow.once('ready-to-show', () => { if (process.env.FORMULA_MD_QA_HIDDEN !== '1') mainWindow?.show(); });
   mainWindow.on('close', (event) => {
@@ -615,6 +623,7 @@ ipcMain.on('ui:state', (_event, value) => {
   if (!value || typeof value !== 'object') return;
   uiState = { hasDocument: Boolean(value.hasDocument), dirty: Boolean(value.dirty), saving: Boolean(value.saving),
     editing: Boolean(value.editing), exporting: Boolean(value.exporting), title: String(value.title || 'Formula MD').slice(0, 300), searchCount: String(value.searchCount || '').slice(0, 40) };
+  if (process.env.FORMULA_MD_GLASS_PREVIEW === '1') uiState.title = uiState.title.replace(/Formula MD$/, 'Formula MD · 玻璃预览');
   const snapshot = JSON.stringify(uiState);
   if (snapshot !== uiSnapshot && nativeActive) nativeUI.sync(JSON.stringify({ ui: uiState }));
   uiSnapshot = snapshot;

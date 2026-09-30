@@ -13,15 +13,18 @@ function applyAppearance(appearance) {
   currentAppearance = appearance;
   const { theme, platform, reducedTransparency, highContrast, active, nativeUI, palette, colors, settings } = appearance;
   Object.assign(document.documentElement.dataset, { theme, platform, palette, nativeUi: String(nativeUI),
-    reducedTransparency: String(reducedTransparency), highContrast: String(highContrast), windowActive: String(active) });
+    reducedTransparency: String(reducedTransparency), reducedMotion: String(Boolean(appearance.reducedMotion)), highContrast: String(highContrast), windowActive: String(active) });
   document.querySelector('#hljsLightTheme').disabled = theme === 'dark';
   document.querySelector('#hljsDarkTheme').disabled = theme !== 'dark';
   const alpha = reducedTransparency || highContrast ? 1 : settings.chromeOpacity;
+  const nativeGlass = platform === 'darwin' && nativeUI;
+  const materialAlpha = nativeGlass && !reducedTransparency && !highContrast ? (theme === 'dark' ? 0.2 : 0.14) : alpha;
   // This style element is screen-only; inline root styles would override print variables.
   elements.appearanceOverrides.textContent = `:root[data-theme][data-palette] { --accent: ${colors.accent}; --accent-bright: ${colors.accent};
     --accent-soft: ${rgba(colors.accent, 0.13)}; --syntax-selection: ${rgba(colors.accent, 0.2)};
-    --chrome-base: ${colors.chrome}; --chrome-tint: ${rgba(colors.chrome, alpha)}; --glass-fill: ${rgba(colors.chrome, alpha)};
-    --toolbar: ${rgba(colors.chrome, alpha)}; --bg: ${colors.page}; --editor-bg: ${colors.page};
+    --chrome-base: ${colors.chrome}; --chrome-tint: ${rgba(colors.chrome, alpha)}; --glass-fill: ${rgba(colors.chrome, materialAlpha)};
+    --native-chrome-inset-top: ${Math.max(0, Number(appearance.nativeChromeInsetTop) || 0)}px;
+    --toolbar: ${rgba(colors.chrome, nativeGlass ? materialAlpha : alpha)}; --bg: ${colors.page}; --editor-bg: ${colors.page};
     --text: ${colors.text}; --syntax-text: ${colors.text}; }`;
   elements.paletteSelect.value = palette;
   elements.settingsTheme.value = settings.theme;

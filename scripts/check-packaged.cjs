@@ -1,11 +1,14 @@
 const path = require('node:path');
 const fs = require('node:fs');
+const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const packed = process.platform === 'darwin'
   ? path.join(root, `dist/mac-${process.arch}/Formula MD.app/Contents/Resources/app.asar`)
   : path.join(root, 'dist/win-unpacked/resources/app.asar');
 if (!fs.existsSync(packed)) throw new Error(`Packaged app not found: ${packed}`);
+const asar = require(require.resolve('@electron/asar', { paths: [path.dirname(require.resolve('electron-builder'))] }));
+assert.equal(JSON.parse(asar.extractFile(packed, 'package.json')).version, require('../package.json').version, 'Packaged version must match the release source');
 const result = spawnSync(process.execPath, [path.join(root, 'scripts/run-appearance.cjs')], {
   stdio: 'inherit', env: { ...process.env, FORMULA_MD_APP_PATH: packed, FORMULA_MD_QA_LABEL: `packaged-${process.platform}` }
 });

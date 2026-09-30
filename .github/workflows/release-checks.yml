@@ -1,7 +1,7 @@
 name: Formula MD release checks
 on:
   push:
-    branches: [main, 'codex/formula-md-2.0.0']
+    branches: [main, 'codex/formula-md-*']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -37,10 +37,15 @@ jobs:
         with:
           name: qa-${{ matrix.os }}
           path: dist/qa-v2
+      - if: always() && runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: glass-${{ matrix.os }}
+          path: dist/glass-optimization
       - if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: windows-x64-release
           path: |
-            dist/Formula-MD-Setup-2.0.0-x64.exe
-            dist/Formula-MD-Setup-2.0.0-x64.exe.blockmap
+            dist/Formula-MD-Setup-*-x64.exe
+            dist/Formula-MD-Setup-*-x64.exe.blockmap

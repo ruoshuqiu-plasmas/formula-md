@@ -13,7 +13,10 @@ fs.mkdirSync(output, { recursive: true });
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const result = { label, platform: process.platform, arch: process.arch, electron: process.versions.electron,
   inputMethod: 'DOM PointerEvent per animation frame; active appearance; desktop input isolated', phases: [] };
-const deadline = setTimeout(() => app.exit(1), 90000);
+const deadline = setTimeout(() => {
+  console.error('Benchmark timed out before all frame samples completed');
+  app.exit(1);
+}, 90000);
 
 app.on('browser-window-created', (_event, window) => {
   const contents = window.webContents;
@@ -21,6 +24,8 @@ app.on('browser-window-created', (_event, window) => {
     const run = (source) => contents.executeJavaScript(source, true);
     try {
       window.show();
+      window.setSize(1260, 760);
+      contents.setBackgroundThrottling(false);
       window.focus();
       window.setIgnoreMouseEvents(true);
       await run('window.MathJax.startup.promise.then(() => true)');
@@ -38,6 +43,9 @@ app.on('browser-window-created', (_event, window) => {
       result.documentBytes = Buffer.byteLength(content);
       result.formulas = await run("document.querySelectorAll('#article mjx-container').length");
       result.viewport = await run('({ width: innerWidth, height: innerHeight, dpr: devicePixelRatio })');
+      result.documentArea = await run('({width:elements.documentArea.clientWidth,height:elements.documentArea.clientHeight})');
+      result.backgroundThrottling = false;
+      result.nativeChromeMotion = await run("!currentAppearance.nativeUI || Boolean(elements.tabList.querySelector('.glass-surface'))");
       contents.debugger.attach('1.3');
       await contents.debugger.sendCommand('Performance.enable');
       const metrics = async () => Object.fromEntries((await contents.debugger.sendCommand('Performance.getMetrics')).metrics.map(({ name, value }) => [name, value]));
@@ -76,9 +84,9 @@ app.on('browser-window-created', (_event, window) => {
           }
           requestAnimationFrame(tick);
         })`));
-        if (!(await run("document.documentElement.dataset.nativeUi === 'true'"))) {
+        if (result.nativeChromeMotion) {
         await measure(`pointer-${round}`, () => run(`new Promise((resolve) => {
-          const button = elements.pdfButton;
+          const button = currentAppearance.nativeUI ? elements.tabList.querySelector('.document-tab.active') : elements.pdfButton;
           const bounds = button.getBoundingClientRect();
           let step = 0;
           function tick() {
@@ -89,12 +97,28 @@ app.on('browser-window-created', (_event, window) => {
             if (step < 120) return requestAnimationFrame(tick);
             requestAnimationFrame(() => resolve({ events: step, input: 'DOM PointerEvent per animation frame',
               activeControl: document.querySelector('.glass-tracking')?.id || null,
+              trackedTarget: document.querySelector('.glass-tracking') === button,
               hasGlass: Boolean(button.querySelector('.glass-surface')) }));
           }
           requestAnimationFrame(tick);
         })`));
         const measured = result.phases.at(-1);
-        if (measured.hasGlass && measured.activeControl !== 'pdfButton') throw new Error('Pointer benchmark did not exercise the active glass surface');
+        if (!measured.hasGlass || !measured.trackedTarget) throw new Error('Pointer benchmark did not exercise the visible glass surface');
+        await run("document.body.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 400, clientY: 400 })); true");
+        await pause(700);
+        await measure(`sidebar-${round}`, () => run(`new Promise((resolve) => {
+          const button = elements.outline.querySelector('.outline-item');
+          const bounds = button.getBoundingClientRect();
+          let events = 0;
+          function tick() {
+            button.dispatchEvent(new PointerEvent('pointermove', { bubbles: true,
+              clientX: bounds.x + bounds.width * (0.5 + Math.sin(events / 10) * 0.35), clientY: bounds.y + bounds.height / 2 }));
+            if (++events < 120) return requestAnimationFrame(tick);
+            requestAnimationFrame(() => resolve({ events, trackedTarget: document.querySelector('.glass-tracking') === button }));
+          }
+          requestAnimationFrame(tick);
+        })`));
+        if (await run('currentAppearance.nativeUI') && !result.phases.at(-1).trackedTarget) throw new Error('Sidebar benchmark missed the visible glass surface');
         await run("document.body.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 400, clientY: 400 })); true");
         await pause(700);
         }

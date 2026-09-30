@@ -1,6 +1,6 @@
 {
   "name": "formula-md",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "A polished offline Markdown and LaTeX reader for macOS and Windows",
   "main": "src/main.js",
   "author": "Formula MD",
@@ -16,6 +16,7 @@
     "test:appearance": "node scripts/build-native.cjs && node scripts/run-appearance.cjs",
     "test:appearance:legacy": "electron tests/appearance-smoke.cjs",
     "bench:appearance": "electron tests/appearance-benchmark.cjs",
+    "preview:glass": "node scripts/build-native.cjs && node scripts/preview-glass.cjs",
     "pack": "node scripts/build-native.cjs && electron-builder --mac dir",
     "pack:win": "electron-builder --win dir --x64",
     "dist": "node scripts/build-native.cjs && electron-builder --mac dmg zip",
