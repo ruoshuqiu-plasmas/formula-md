@@ -52,6 +52,9 @@ app.on('browser-window-created', (_event, window) => {
   if (mainWindow) return;
   mainWindow = window;
   const contents = window.webContents;
+  // Synthetic activity must not inherit a CI desktop's background timer budget.
+  // Real inactive/reduced-motion behavior is still checked through appearance state.
+  contents.setBackgroundThrottling(false);
   const run = (code) => contents.executeJavaScript(code, true);
   const check = async (name, code) => {
     const value = await run(code);
@@ -142,8 +145,10 @@ app.on('browser-window-created', (_event, window) => {
       await check('Press deforms material without moving the hit target', "document.querySelector('.document-tab.active').classList.contains('glass-pressed') && getComputedStyle(document.querySelector('.document-tab.active .glass-surface')).transform !== 'none' && getComputedStyle(document.querySelector('.document-tab.active')).transform === 'none'");
       await pointer('.document-tab.active', 'pointerup');
       await run("document.body.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:800,clientY:400})); true");
-      await pause(700);
-      await check('Material and ambient light settle without a continuing frame loop', "!document.querySelector('.glass-tracking,.glass-reflection,.glass-caustic,.glass-ambient,.glass-flowing') && [...document.querySelectorAll('.glass-surface')].every(surface=>!surface.style.transform && surface.getAnimations().length === 0)");
+      const settled = "!document.querySelector('.glass-tracking,.glass-reflection,.glass-caustic,.glass-ambient,.glass-flowing') && [...document.querySelectorAll('.glass-surface')].every(surface=>!surface.style.transform && surface.getAnimations().length === 0)";
+      await wait(settled);
+      await pause(100);
+      await check('Material and ambient light settle without a continuing frame loop', settled);
       await run(`switchTab(${JSON.stringify(second)})`);
       await check('Changing tabs animates the shared selection lens', "document.querySelector('.glass-tab-lens').getAnimations().length === 1");
       await pause(700);
