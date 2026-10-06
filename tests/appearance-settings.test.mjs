@@ -28,6 +28,25 @@ test('invalid stored values and partial updates cannot corrupt settings', () => 
   assert.equal(value.customColors['arctic-frost'], undefined);
   assert.equal(Settings.patch(value, { allowRemoteImages: 'yes' }).allowRemoteImages, false);
 });
+test('glass backgrounds range from opaque to a legible translucent page', () => {
+  for (const theme of ['light', 'dark']) {
+    const values = [1, 0.5, 0].map((chromeOpacity) => Settings.material({ theme, settings: { chromeOpacity } }));
+    assert.equal(values[0].chromeAlpha, 1);
+    assert.equal(values[0].pageAlpha, 1);
+    assert.equal(values[2].chromeAlpha, theme === 'dark' ? 0.24 : 0);
+    assert.ok(values[2].pageAlpha >= 0.7 && values[2].pageAlpha < 0.9);
+    for (let i = 1; i < values.length; i++) {
+      assert.ok(values[i].chromeAlpha < values[i - 1].chromeAlpha);
+      assert.ok(values[i].pageAlpha < values[i - 1].pageAlpha);
+    }
+    for (const flag of ['reducedTransparency', 'highContrast']) {
+      const value = Settings.material({ theme, settings: { chromeOpacity: 0 }, [flag]: true });
+      assert.equal(value.chromeAlpha, 1);
+      assert.equal(value.pageAlpha, 1);
+      assert.equal(value.sheenAlpha, 0);
+    }
+  }
+});
 test('an asynchronous insertion follows typing without overwriting changed selections', () => {
   const anchor = { content: 'hello world', start: 6, end: 6 };
   rebase(anchor, 'prefix hello world');

@@ -501,7 +501,7 @@ function syncWindowAppearance() {
   if (snapshot === appearanceSnapshot) return;
   appearanceSnapshot = snapshot;
   const opaque = appearance.reducedTransparency || appearance.highContrast;
-  if (process.platform === 'darwin') mainWindow.setVibrancy(opaque ? null : (nativeActive ? 'sidebar' : 'under-window'));
+  if (process.platform === 'darwin') mainWindow.setVibrancy(opaque || nativeActive ? null : 'under-window');
   if (supportsWindowsBackdrop) {
     try { mainWindow.setBackgroundMaterial(opaque ? 'none' : 'acrylic'); } catch { /* Older Windows uses the CSS background. */ }
   }
@@ -538,7 +538,7 @@ function createWindow() {
       ? {
           titleBarStyle: nativeUI ? 'default' : 'hiddenInset',
           ...(nativeUI ? {} : { trafficLightPosition: { x: 18, y: 17 } }),
-          vibrancy: 'sidebar',
+          ...(nativeUI ? {} : { vibrancy: 'under-window' }),
           visualEffectState: 'followWindow'
         }
       : {}),

@@ -1,4 +1,4 @@
-/* Event-driven glass: stable hit targets, one shared pair of lights, no idle loop. */
+/* Event-driven glass: stable hit targets, shared lights and ambient flow, no idle loop. */
 (() => {
   const root = document.documentElement;
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -8,6 +8,16 @@
   const tabBar = document.querySelector('#tabBar');
   const tabList = document.querySelector('#tabList');
   const chromeContainers = ['#tabList', '#recentList', '#outline', '#welcomeRecents'];
+  const flowHosts = [document.querySelector('.sidebar'), tabBar];
+  const ambient = document.createElement('span');
+  ambient.className = 'glass-ambient';
+  ambient.setAttribute('aria-hidden', 'true');
+  let flowHost = null;
+  let flowBounds = null;
+  let flowFrame = null;
+  let flowTimer = null;
+  let flowX = 0;
+  let flowY = 0;
   const lensClip = document.createElement('span');
   const lens = document.createElement('span');
   lensClip.className = 'glass-tab-lens-clip';
@@ -71,14 +81,44 @@
     if (animate && old && old.path !== next.path && root.classList.contains('glass-motion')) {
       lensAnimation = lens.animate([
         { transform: `translate(${old.x}px, ${old.y}px) scale(${old.width / next.width}, ${old.height / next.height})` },
-        { transform: `translate(${next.x + Math.sign(next.x - old.x) * 2}px, ${next.y}px) scale(1.025, 0.98)`, offset: 0.72 },
+        { transform: `translate(${old.x + (next.x - old.x) * 0.52}px, ${next.y}px) scale(${Math.min(1.32, 1 + Math.abs(next.x - old.x) / next.width * 0.12)}, 0.9)`, offset: 0.42 },
+        { transform: `translate(${next.x + Math.sign(next.x - old.x) * 3}px, ${next.y}px) scale(1.04, 0.97)`, offset: 0.76 },
         { transform: `translate(${next.x}px, ${next.y}px) scale(1, 1)` }
-      ], { duration: 420, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+      ], { duration: 520, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
     }
     lensPosition = next;
   }
   function queueTabs() {
     if (tabFrame === null) tabFrame = requestAnimationFrame(() => { tabFrame = null; syncTabs(); });
+  }
+
+  function resetFlow(immediate = false) {
+    if (flowFrame !== null) cancelAnimationFrame(flowFrame);
+    flowFrame = null;
+    clearTimeout(flowTimer);
+    flowHost?.classList.remove('glass-flowing');
+    flowHost = null;
+    flowBounds = null;
+    if (immediate) ambient.remove();
+    else flowTimer = setTimeout(() => ambient.remove(), 320);
+  }
+
+  function flow(event) {
+    const next = enhanced() && flowHosts.find((host) => host.contains(event.target));
+    if (!next) { if (flowHost) resetFlow(); return; }
+    if (next !== flowHost) {
+      resetFlow(true);
+      flowHost = next;
+      flowBounds = next.getBoundingClientRect();
+      next.prepend(ambient);
+      next.classList.add('glass-flowing');
+    }
+    flowX = event.clientX - flowBounds.left;
+    flowY = event.clientY - flowBounds.top;
+    if (flowFrame === null) flowFrame = requestAnimationFrame(() => {
+      flowFrame = null;
+      ambient.style.transform = `translate(${(flowX - 190).toFixed(1)}px, ${(flowY - 140).toFixed(1)}px) rotate(${(flowX / flowBounds.width * 18 - 9).toFixed(1)}deg)`;
+    });
   }
 
   let target = null;
@@ -130,10 +170,10 @@
     const surface = controls.get(target);
     // The relief stays anchored; a shallow squeeze keeps the glass fluid.
     const native = enhanced();
-    const sx = pressed ? 1.025 : 1 + Math.abs(x) * (native ? 0.015 : 0.008);
-    const sy = pressed ? (native ? 0.97 : 0.92) : 1 + Math.abs(y) * 0.016;
-    surface.style.transform = `${native ? `translate(${(x * 1.5).toFixed(2)}px, ${(y * 1).toFixed(2)}px) ` : ''}scale(${sx.toFixed(3)}, ${sy.toFixed(3)})`;
-    reflection.style.transform = `translate(${(x * bounds.width * 0.26).toFixed(2)}px, ${(y * 7).toFixed(2)}px) rotate(${(x * -14).toFixed(2)}deg) scale(${pressed ? '1.28, 0.82' : '1, 1'})`;
+    const sx = pressed ? 1.045 : 1 + Math.abs(x) * (native ? 0.025 : 0.008);
+    const sy = pressed ? (native ? 0.94 : 0.92) : 1 + Math.abs(y) * 0.022;
+    surface.style.transform = `${native ? `translate(${(x * 2.5).toFixed(2)}px, ${(y * 1.5).toFixed(2)}px) ` : ''}scale(${sx.toFixed(3)}, ${sy.toFixed(3)})`;
+    reflection.style.transform = `translate(${(x * bounds.width * 0.34).toFixed(2)}px, ${(y * 9).toFixed(2)}px) rotate(${(x * -22).toFixed(2)}deg) scale(${pressed ? '1.38, 0.78' : '1, 1'})`;
     caustic.style.transform = `translate(${(x * bounds.width * -0.18).toFixed(2)}px, ${(bounds.height * 0.4 - y * 4).toFixed(2)}px) scale(${pressed ? '0.86, 1.35' : '1, 1'})`;
   }
 
@@ -155,6 +195,7 @@
   }
 
   function move(event) {
+    flow(event);
     if (!pressed) target?.classList.remove('glass-releasing');
     aim(event.target, event.clientX, event.clientY);
   }
@@ -190,6 +231,7 @@
 
   function refresh() {
     reset(true);
+    resetFlow(true);
     const enabled = !reducedMotion.matches && !reducedTransparency.matches
       && root.dataset.reducedMotion !== 'true'
       && root.dataset.reducedTransparency !== 'true' && root.dataset.highContrast !== 'true'
@@ -218,15 +260,15 @@
 
   [reducedMotion, reducedTransparency].forEach((query) => query.addEventListener('change', refresh));
   document.addEventListener('visibilitychange', refresh);
-  document.addEventListener('pointerleave', () => reset());
-  document.addEventListener('pointercancel', () => reset(true));
+  document.addEventListener('pointerleave', () => { reset(); resetFlow(); });
+  document.addEventListener('pointercancel', () => { reset(true); resetFlow(true); });
   document.addEventListener('focusout', (event) => {
     if (target?.contains(event.target) && !target.contains(event.relatedTarget)) reset();
   });
-  document.addEventListener('scroll', (event) => { reset(); if (event.target === tabList) queueTabs(); }, { capture: true, passive: true });
-  window.addEventListener('resize', () => { reset(true); queueTabs(); }, { passive: true });
+  document.addEventListener('scroll', (event) => { reset(); resetFlow(); if (event.target === tabList) queueTabs(); }, { capture: true, passive: true });
+  window.addEventListener('resize', () => { reset(true); resetFlow(true); queueTabs(); }, { passive: true });
   new ResizeObserver(queueTabs).observe(tabList);
-  window.addEventListener('blur', () => { reset(true); lensAnimation?.cancel(); });
+  window.addEventListener('blur', () => { reset(true); resetFlow(true); lensAnimation?.cancel(); });
   window.GlassEffects = { refresh, setMode, syncChrome };
   refresh();
 })();

@@ -28,7 +28,12 @@ function finish(error) {
 }
 async function captureWindow(window, name) {
   if (systemPreferences.getMediaAccessStatus('screen') !== 'granted') throw new Error('Whole-window transparency verification needs screen capture access');
-  window.focus(); await pause(500);
+  // A key window in a background Electron process still renders inactive glass.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    window.moveTop(); window.focus(); app.focus({ steal: true }); await pause(300);
+    if (window.isFocused()) break;
+  }
+  assert.equal(window.isFocused(), true, 'Desktop capture requires the test window to be focused');
   const bounds = window.getBounds();
   const display = screen.getDisplayMatching(bounds);
   const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: display.size.width * display.scaleFactor, height: display.size.height * display.scaleFactor } });
@@ -86,6 +91,8 @@ app.on('browser-window-created', (_event, window) => {
           ...(window.glassQaEmulatePreferences ? {reducedMotion:false,reducedTransparency:false,highContrast:false} : {})}));
         for(const type of ['pointermove','pointerleave','pointerdown','pointerup','blur']) window.addEventListener(type,event=>{if(event.isTrusted)event.stopImmediatePropagation();},true); true`);
       assert.equal(await run('currentAppearance.nativeUI'), true);
+      assert.equal(JSON.parse(bridge.diagnostics()).windowBackdrop.attached, true);
+      checks.push('Shared native diffusion and clear glass are attached');
       window.setSize(1260, 760); window.setPosition(60, 50); window.setAlwaysOnTop(true, 'floating'); window.show(); window.focus();
       await run("window.formulaMD.writeSettings({theme:'light',chromeOpacity:0})");
       const first = path.join(profile, '公式.md');
@@ -106,18 +113,26 @@ app.on('browser-window-created', (_event, window) => {
       for (const selector of ['.document-tab.active', '#outline .outline-item', '#recentList .recent-item', '#addTabButton']) {
         // Sample an actual finite trajectory. A window appearance notification can
         // correctly clear stationary tracking while the test host changes focus.
-        await run(`new Promise(resolve => {
+        const tracked = await run(`new Promise(resolve => {
           const control = document.querySelector(${JSON.stringify(selector)});
           let frames = 0;
           function move() {
             const rect = control.getBoundingClientRect();
             control.dispatchEvent(new PointerEvent('pointermove', { bubbles:true, clientX:rect.x + rect.width * (0.5 + frames / 40), clientY:rect.y + rect.height / 2 }));
             if (++frames < 12) requestAnimationFrame(move);
-            else requestAnimationFrame(() => resolve(true));
+            else requestAnimationFrame(() => resolve(
+              document.querySelector('.glass-tracking') === control
+              && Boolean(control.querySelector('.glass-reflection'))
+              && control.querySelector('.glass-surface').style.transform.includes('translate(')
+              && Boolean(document.querySelector('.glass-flowing > .glass-ambient'))
+            ));
           }
           move();
         })`);
-        await check(`Visible material tracks ${selector}`, `document.querySelector('.glass-tracking') === document.querySelector(${JSON.stringify(selector)}) && Boolean(document.querySelector('.glass-tracking .glass-reflection')) && document.querySelector('.glass-tracking .glass-surface').style.transform.includes('translate(')`);
+        // Sample in the animation frame, before another IPC round trip can
+        // legitimately clear stationary tracking on an appearance notification.
+        assert.equal(tracked, true, `Visible material tracks ${selector}`);
+        checks.push(`Visible material tracks ${selector}`);
       }
       await run("elements.article.insertAdjacentHTML('beforeend','<button class=\"glass-control\" id=\"documentGlassProbe\">文档内容</button>'); true");
       await pointer('#documentGlassProbe', 'pointermove');
@@ -128,7 +143,7 @@ app.on('browser-window-created', (_event, window) => {
       await pointer('.document-tab.active', 'pointerup');
       await run("document.body.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:800,clientY:400})); true");
       await pause(700);
-      await check('Material settles without a continuing frame loop', "!document.querySelector('.glass-tracking,.glass-reflection,.glass-caustic') && [...document.querySelectorAll('.glass-surface')].every(surface=>!surface.style.transform && surface.getAnimations().length === 0)");
+      await check('Material and ambient light settle without a continuing frame loop', "!document.querySelector('.glass-tracking,.glass-reflection,.glass-caustic,.glass-ambient,.glass-flowing') && [...document.querySelectorAll('.glass-surface')].every(surface=>!surface.style.transform && surface.getAnimations().length === 0)");
       await run(`switchTab(${JSON.stringify(second)})`);
       await check('Changing tabs animates the shared selection lens', "document.querySelector('.glass-tab-lens').getAnimations().length === 1");
       await pause(700);
@@ -154,6 +169,11 @@ app.on('browser-window-created', (_event, window) => {
         await run(`applyAppearance({...currentAppearance,${Object.entries(flags).map(([key,value])=>`${key}:${value}`).join(',')}}); true`);
         bridge.sync(JSON.stringify({appearance:{...appearance,...flags}}));
         assert.equal(JSON.parse(bridge.diagnostics()).glassGroups.every(group=>!group.interactive), true);
+        if (flags.reducedTransparency || flags.highContrast) {
+          assert.equal(JSON.parse(bridge.diagnostics()).windowBackdrop.hidden, true);
+          assert.equal(JSON.parse(bridge.diagnostics()).windowBackdrop.opaque, true);
+          await check('Accessibility restores an opaque document background', "getComputedStyle(elements.documentArea).backgroundColor === 'rgb(240, 245, 250)'");
+        }
         await check(`Accessibility/activity override ${JSON.stringify(flags)} stops motion`, "!document.documentElement.classList.contains('glass-motion')");
         await run(`applyAppearance(${JSON.stringify(appearance)}); true`); bridge.sync(JSON.stringify({appearance}));
       }
@@ -182,11 +202,13 @@ app.on('browser-window-created', (_event, window) => {
         samples.push({transparency:Math.round((1-opacity)*100), chromeDifference:difference(pixel(red,130,640),pixel(blue,130,640)), pageDifference:difference(pixel(red,1050,640),pixel(blue,1050,640))});
       }
       assert.ok(samples[0].chromeDifference < 6, JSON.stringify(samples));
-      assert.ok(samples[2].chromeDifference > 25, JSON.stringify(samples));
+      assert.ok(samples[2].chromeDifference > 80, JSON.stringify(samples));
       assert.ok(samples[1].chromeDifference > samples[0].chromeDifference && samples[1].chromeDifference < samples[2].chromeDifference, JSON.stringify(samples));
-      assert.ok(samples.every(sample=>sample.pageDifference < 6), JSON.stringify(samples));
+      assert.ok(samples[0].pageDifference < 6, JSON.stringify(samples));
+      assert.ok(samples[2].pageDifference > 12 && samples[2].pageDifference < samples[2].chromeDifference, JSON.stringify(samples));
+      assert.ok(samples[1].pageDifference < samples[2].pageDifference, JSON.stringify(samples));
       fs.writeFileSync(path.join(output, 'transparency-pixels.json'), JSON.stringify(samples, null, 2));
-      checks.push('Desktop composition proves monotonic transparency and an opaque document');
+      checks.push('Desktop composition proves stronger chrome transparency and a gently translucent document');
       await backdropColor('linear-gradient(100deg,#c43662 0 24%,#245dba 24% 49%,#3ba35b 49% 74%,#daa728 74%)');
       for (const palette of await run('Object.keys(window.AppearanceSettings.palettes)')) {
         await run(`window.formulaMD.writeSettings({palette:${JSON.stringify(palette)}})`);
@@ -196,11 +218,11 @@ app.on('browser-window-created', (_event, window) => {
       await run("window.formulaMD.writeSettings({palette:'arctic-frost'}); true");
       await run('setEditMode(true); true');
       await captureWindow(window, 'editor-glass');
-      await check('Editing remains opaque', "getComputedStyle(elements.sourceEditor).opacity === '1' && getComputedStyle(elements.editorPanel).backgroundColor === getComputedStyle(elements.documentArea).backgroundColor");
+      await check('Editor text remains opaque over one shared translucent page', "getComputedStyle(elements.sourceEditor).opacity === '1' && getComputedStyle(elements.editorPanel).backgroundColor === 'rgba(0, 0, 0, 0)' && getComputedStyle(elements.sourceEditor).opacity === '1'");
       await backdropColor('#c43662'); const editorRed = await captureWindow(window, 'editor-red');
       await backdropColor('#245dba'); const editorBlue = await captureWindow(window, 'editor-blue');
-      assert.ok(difference(pixel(editorRed,600,640),pixel(editorBlue,600,640)) < 6);
-      checks.push('Desktop composition proves the editor background remains opaque');
+      assert.ok(difference(pixel(editorRed,600,640),pixel(editorBlue,600,640)) > 12);
+      checks.push('Desktop composition proves the editor has the same gentle translucency');
       window.setSize(900,600); backdrop.setBounds(window.getBounds()); await pause(700);
       await check('Minimum window layout clears the native toolbar', 'elements.documentArea.getBoundingClientRect().top >= currentAppearance.nativeChromeInsetTop && elements.documentArea.getBoundingClientRect().right <= innerWidth && elements.documentArea.clientHeight > 200');
       await captureWindow(window, 'minimum-glass');

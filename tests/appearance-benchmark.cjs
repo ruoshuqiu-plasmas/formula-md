@@ -34,6 +34,11 @@ app.on('browser-window-created', (_event, window) => {
       // Keep desktop pointer traffic from replacing the measured trajectory.
       await run("for (const type of ['pointermove', 'pointerleave', 'pointerdown', 'pointerup', 'blur']) window.addEventListener(type, (event) => { if (event.isTrusted) event.stopImmediatePropagation(); }, true); true");
       await run("applyTheme('light')");
+      if (process.env.FORMULA_MD_BENCH_TRANSPARENCY !== undefined) {
+        const transparency = Math.max(0, Math.min(100, Number(process.env.FORMULA_MD_BENCH_TRANSPARENCY) || 0));
+        await run(`window.formulaMD.writeSettings({chromeOpacity:${1 - transparency / 100}})`);
+        result.transparency = transparency;
+      }
       const sample = path.join(profile, 'benchmark.md');
       const content = fs.readFileSync(path.join(root, 'examples/latex-showcase.md'), 'utf8').repeat(20);
       fs.writeFileSync(sample, content);

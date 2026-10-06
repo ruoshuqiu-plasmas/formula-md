@@ -160,7 +160,7 @@ app.on('browser-window-created', (_event, window) => {
       await wait("currentAppearance.palette === 'ultra-violet'");
       await run("window.formulaMD.writeSettings({colors:{palette:'ultra-violet',accent:'#ff9955',page:'#202030',chrome:'#302030',text:'#ffeecc'},chromeOpacity:0})");
       await wait("getComputedStyle(elements.article).color === 'rgb(255, 238, 204)'");
-      await check('Transparent chrome keeps text, formula and content panel opaque', "getComputedStyle(elements.article).opacity === '1' && getComputedStyle(elements.documentArea).backgroundColor === 'rgb(32, 32, 48)'");
+      await check('Transparent page preserves full-opacity text and custom page color', "getComputedStyle(elements.article).opacity === '1' && getComputedStyle(elements.documentArea).backgroundColor === (currentAppearance.reducedTransparency || currentAppearance.highContrast ? 'rgb(32, 32, 48)' : 'rgba(32, 32, 48, 0.82)')");
       if (bridge && (await run('currentAppearance.nativeUI'))) {
         assert.equal(JSON.parse(bridge.diagnostics()).settingsHex.accent, '#ff9955');
         checks.push('Native color wells and hex fields stay synchronized after palette changes');

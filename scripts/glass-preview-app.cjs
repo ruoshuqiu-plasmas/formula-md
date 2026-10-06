@@ -41,32 +41,46 @@ app.on('browser-window-created', (_event, window) => {
           fs.mkdirSync(directory, { recursive: true });
           const stamps = [];
           const paths = await run('[...state.tabs.keys()]');
-          await run("applyAppearance({...currentAppearance,active:true}); true");
+          await run(`window.glassRecording = true;
+            if (!window.glassRecordingListener) {
+              window.glassRecordingListener = true;
+              window.formulaMD.onAppearanceChanged(appearance => { if (window.glassRecording) applyAppearance({...appearance,active:true}); });
+            }
+            window.glassRecordingInput = event => { if (event.isTrusted) event.stopImmediatePropagation(); };
+            for (const type of ['pointermove','pointerleave','pointerdown','pointerup','blur']) window.addEventListener(type,window.glassRecordingInput,true);
+            applyAppearance({...currentAppearance,active:true}); true`);
           const inset = await run('currentAppearance.nativeChromeInsetTop || 0');
           const start = Date.now();
-          for (let frame = 0; frame < 40; frame++) {
-            if (frame === 23) await run(`switchTab(${JSON.stringify(paths[1])}); true`);
-            const selector = frame < 8 ? '.document-tab.active' : frame < 16 ? '#outline .outline-item' : frame < 23 ? '#recentList .recent-item' : frame < 31 ? '.document-tab.active' : 'body';
-            const type = frame === 6 ? 'pointerdown' : frame === 7 ? 'pointerup' : 'pointermove';
-            await run(`(()=>{const control=document.querySelector(${JSON.stringify(selector)});if(!control)return true;const rect=control.getBoundingClientRect();control.dispatchEvent(new PointerEvent(${JSON.stringify(type)},{bubbles:true,button:0,clientX:rect.x+rect.width*${0.15 + (frame % 8) / 10},clientY:rect.y+rect.height/2}));return true;})()`);
-            await pause(40);
-            fs.writeFileSync(path.join(directory, `${String(frame).padStart(3, '0')}.png`), (await contents.capturePage({x:0,y:inset,width:800,height:520})).toPNG());
-            stamps.push({frame,elapsedMs:Date.now()-start,selector,type,...await run("({tracked:document.querySelector('.glass-tracking')?.className || null,lensAnimations:document.querySelector('.glass-tab-lens')?.getAnimations().length || 0})")});
+          try {
+            for (let frame = 0; frame < 40; frame++) {
+              if (frame === 23) await run(`switchTab(${JSON.stringify(paths[1])}); true`);
+              const selector = frame < 8 ? '.document-tab.active' : frame < 16 ? '#outline .outline-item' : frame < 23 ? '#recentList .recent-item' : frame < 31 ? '.document-tab.active' : 'body';
+              const type = frame === 6 ? 'pointerdown' : frame === 7 ? 'pointerup' : 'pointermove';
+              await run(`(()=>{const control=document.querySelector(${JSON.stringify(selector)});if(!control)return true;const rect=control.getBoundingClientRect();control.dispatchEvent(new PointerEvent(${JSON.stringify(type)},{bubbles:true,button:0,clientX:rect.x+rect.width*${0.15 + (frame % 8) / 10},clientY:rect.y+rect.height/2}));return true;})()`);
+              await pause(40);
+              fs.writeFileSync(path.join(directory, `${String(frame).padStart(3, '0')}.png`), (await contents.capturePage({x:0,y:inset,width:800,height:520})).toPNG());
+              stamps.push({frame,elapsedMs:Date.now()-start,selector,type,...await run("({tracked:document.querySelector('.glass-tracking')?.className || null,lensAnimations:document.querySelector('.glass-tab-lens')?.getAnimations().length || 0})")});
+            }
+            fs.writeFileSync(path.join(directory, 'frames.json'), JSON.stringify({ capture:'Renderer chrome only; native toolbar is shown in whole-window PNGs', stamps }, null, 2));
+            await run(`switchTab(${JSON.stringify(paths[0])})`);
+          } finally {
+            await run(`window.glassRecording = false;
+              for (const type of ['pointermove','pointerleave','pointerdown','pointerup','blur']) window.removeEventListener(type,window.glassRecordingInput,true);
+              window.formulaMD.getAppearance().then(applyAppearance)`);
           }
-          fs.writeFileSync(path.join(directory, 'frames.json'), JSON.stringify({ capture:'Renderer chrome only; native toolbar is shown in whole-window PNGs', stamps }, null, 2));
-          await run(`switchTab(${JSON.stringify(paths[0])})`);
         };
         const renderScene = async (scene) => {
           window.setAlwaysOnTop(true, 'floating'); backdrop.setAlwaysOnTop(true, 'floating');
           window.setIgnoreMouseEvents(true);
           backdrop.showInactive(); window.moveTop();
           try {
+            if (scene.backdrop) await backdrop.loadURL('data:text/html,' + encodeURIComponent(`<body style="margin:0;background:${scene.backdrop};height:100vh"></body>`));
             if (scene.theme) await run(`window.formulaMD.writeSettings(${JSON.stringify({ theme: scene.theme, chromeOpacity: scene.opacity ?? 0, ...(scene.palette ? { palette: scene.palette } : {}) })})`);
             if (scene.size) { window.setSize(...scene.size); backdrop.setBounds(window.getBounds()); }
             if (scene.position) { window.setPosition(...scene.position); backdrop.setBounds(window.getBounds()); }
             await run(`setEditMode(${Boolean(scene.editing)}); true`);
             await run('elements.contentScroller.scrollTop = 0; true');
-            window.focus();
+            window.focus(); app.focus({ steal: true });
             await pause(750);
             const diagnostics = process.platform === 'darwin' ? JSON.parse(require(path.join(root, 'src/native/formula-md-native.node')).diagnostics()) : null;
             fs.writeFileSync(path.join(output, `${label}-${scene.name}.json`), JSON.stringify({ diagnostics, appearance: await run('currentAppearance'), geometry: await run('({inset:currentAppearance.nativeChromeInsetTop,tab:elements.tabBar.getBoundingClientRect().toJSON(),page:elements.documentArea.getBoundingClientRect().toJSON()})') }, null, 2));

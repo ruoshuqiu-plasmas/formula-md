@@ -177,5 +177,19 @@
     const palette = config.palettes[mode];
     return { mode, palette, colors: { ...palettes[palette].colors, ...config.customColors[palette] } };
   }
-  return { palettes, defaults, colorKeys, validColor, normalize, patch, resolve };
+  function material(appearance) {
+    const opacity = normalize(appearance.settings).chromeOpacity;
+    const opaque = appearance.reducedTransparency || appearance.highContrast;
+    const dark = appearance.theme === 'dark';
+    const strength = opaque ? 0 : 1 - opacity;
+    // Only backgrounds use alpha. Glyphs, formulas, images and selections do not.
+    return {
+      chromeAlpha: opaque ? 1 : (dark ? 0.24 + 0.76 * Math.pow(opacity, 1.4) : Math.pow(opacity, 1.4)),
+      pageAlpha: 1 - strength * (dark ? 0.18 : 0.28),
+      sidebarAlpha: opaque ? 1 : 0.06 + opacity * 0.16,
+      controlAlpha: opaque ? 1 : 0.1 + opacity * 0.2,
+      sheenAlpha: opaque ? 0 : strength * (dark ? 0.09 : 0.22)
+    };
+  }
+  return { palettes, defaults, colorKeys, validColor, normalize, patch, resolve, material };
 });

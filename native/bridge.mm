@@ -24,7 +24,10 @@ static NSString *hexColor(NSColor *value) {
 @property(weak) NSWindow *window;
 @property(weak) NSView *webView;
 @property(strong) NSToolbar *toolbar;
+@property(strong) id titlebarEventMonitor;
 @property(strong) NSMutableArray<NSView *> *glassGroups;
+@property(strong) NSView *windowGlass;
+@property(strong) NSVisualEffectView *windowFrost;
 @property CGFloat lastChromeInset;
 @property(strong) NSMutableDictionary<NSString *, NSControl *> *controls;
 @property(strong) NSPanel *panel;
@@ -39,6 +42,7 @@ static NSString *hexColor(NSColor *value) {
 - (void)dispose;
 - (CGFloat)chromeInset;
 - (void)layoutChanged:(NSNotification *)notification;
+- (BOOL)handleTitlebarDoubleClick:(NSEvent *)event;
 @end
 @implementation FMController
 - (void)attach:(NSView *)view {
@@ -57,6 +61,32 @@ static NSString *hexColor(NSColor *value) {
   self.window.toolbarStyle = NSWindowToolbarStyleUnified;
   self.window.titleVisibility = NSWindowTitleVisible;
   self.window.titlebarSeparatorStyle = NSTitlebarSeparatorStyleNone;
+  if (@available(macOS 26.0, *)) {
+    NSView *host = self.window.contentView;
+    // A light behind-window diffusion layer softens desktop detail without the
+    // opaque tint of a full-strength sidebar material. Clear glass adds the rim.
+    NSVisualEffectView *frost = [[NSVisualEffectView alloc] initWithFrame:host.bounds];
+    frost.material = NSVisualEffectMaterialUnderWindowBackground;
+    frost.blendingMode = NSVisualEffectBlendingModeBehindWindow;
+    frost.state = NSVisualEffectStateFollowsWindowActiveState;
+    frost.alphaValue = 0.45;
+    frost.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    [host addSubview:frost positioned:NSWindowBelow relativeTo:nil];
+    self.windowFrost = frost;
+    NSGlassEffectView *glass = [[NSGlassEffectView alloc] initWithFrame:host.bounds];
+    glass.style = NSGlassEffectViewStyleClear;
+    glass.cornerRadius = 20;
+    glass.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    glass.contentView = [[NSView alloc] initWithFrame:glass.bounds];
+    [host addSubview:glass positioned:NSWindowBelow relativeTo:frost];
+    self.windowGlass = glass;
+  }
+  // Full-size Electron content can swallow AppKit's titlebar double-click.
+  // Keep native controls in charge of their clicks and consume only chrome.
+  __weak FMController *weakSelf = self;
+  self.titlebarEventMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskLeftMouseUp handler:^NSEvent *(NSEvent *event) {
+    return [weakSelf handleTitlebarDoubleClick:event] ? nil : event;
+  }];
   for (NSString *name in @[NSWindowDidResizeNotification, NSWindowDidEnterFullScreenNotification, NSWindowDidExitFullScreenNotification, NSWindowDidChangeBackingPropertiesNotification]) {
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(layoutChanged:) name:name object:self.window];
   }
@@ -64,6 +94,41 @@ static NSString *hexColor(NSColor *value) {
   [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(layoutChanged:) name:NSViewFrameDidChangeNotification object:self.webView];
   [NSWorkspace.sharedWorkspace.notificationCenter addObserver:self selector:@selector(accessibilityChanged:) name:NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification object:nil];
   [self layoutChanged:nil];
+}
+- (BOOL)handleTitlebarDoubleClick:(NSEvent *)event {
+  NSWindow *window = self.window;
+  if (!window || event.window != window || event.clickCount != 2
+      || (event.modifierFlags & NSEventModifierFlagControl)
+      || !(window.styleMask & NSWindowStyleMaskResizable)
+      || (window.styleMask & NSWindowStyleMaskFullScreen)) return NO;
+  NSRect layout = window.contentLayoutRect;
+  NSRect titlebar = NSMakeRect(0, NSMaxY(layout), NSWidth(window.frame), NSHeight(window.frame) - NSMaxY(layout));
+  if (!NSPointInRect(event.locationInWindow, titlebar)) return NO;
+  // Transparent/disabled controls may let hitTest fall through to the chrome.
+  for (NSToolbarItem *item in self.toolbar.items) {
+    if (item.view && NSPointInRect(event.locationInWindow, [item.view convertRect:item.view.bounds toView:nil])) return NO;
+  }
+  for (NSNumber *type in @[@(NSWindowCloseButton), @(NSWindowMiniaturizeButton), @(NSWindowZoomButton)]) {
+    NSButton *button = [window standardWindowButton:(NSWindowButton)type.integerValue];
+    if (button && NSPointInRect(event.locationInWindow, [button convertRect:button.bounds toView:nil])) return NO;
+  }
+  NSView *frame = window.contentView.superview;
+  NSView *hit = [frame hitTest:[frame convertPoint:event.locationInWindow fromView:nil]];
+  for (NSView *view = hit; view; view = view.superview) {
+    // AppKit also uses a read-only NSTextField for the window title.
+    BOOL titleLabel = [view isKindOfClass:NSTextField.class]
+      && ![(NSTextField *)view isEditable] && ![(NSTextField *)view isSelectable];
+    if ([view isKindOfClass:NSControl.class] && !titleLabel) return NO;
+  }
+  // Glass padding belongs to its toolbar item, even where no button is hit.
+  for (NSToolbarItem *item in self.toolbar.items) {
+    if (item.view && [hit isDescendantOf:item.view]) return NO;
+  }
+  NSString *action = [NSUserDefaults.standardUserDefaults stringForKey:@"AppleActionOnDoubleClick"];
+  if ([action isEqualToString:@"Minimize"]) [window performMiniaturize:nil];
+  else if (!action || [action isEqualToString:@"Maximize"] || [action isEqualToString:@"Fill"]) [window performZoom:nil];
+  // "None" and unknown preferences intentionally perform no action.
+  return YES;
 }
 - (CGFloat)chromeInset {
   NSRect layout = [self.webView convertRect:self.window.contentLayoutRect fromView:self.window.contentView];
@@ -180,6 +245,12 @@ static NSString *hexColor(NSColor *value) {
   }
   if (@available(macOS 26.0, *)) {
     BOOL opaque = [self.appearance[@"reducedTransparency"] boolValue] || [self.appearance[@"highContrast"] boolValue];
+    NSGlassEffectView *windowGlass = (NSGlassEffectView *)self.windowGlass;
+    windowGlass.hidden = opaque;
+    self.windowFrost.hidden = opaque;
+    windowGlass.tintColor = nil;
+    self.window.opaque = opaque;
+    self.window.backgroundColor = opaque ? color(self.appearance[@"colors"][@"chrome"]) : NSColor.clearColor;
     for (NSGlassEffectView *glass in self.glassGroups) {
       glass.style = opaque ? NSGlassEffectViewStyleRegular : NSGlassEffectViewStyleClear;
       glass.tintColor = [color(self.appearance[@"colors"][@"chrome"]) colorWithAlphaComponent:opaque ? 1 : 0.08];
@@ -246,7 +317,7 @@ static NSString *hexColor(NSColor *value) {
     NSButton *remote = [NSButton checkboxWithTitle:@"允许加载 HTTP / HTTPS 网络图片" target:self action:@selector(settingChanged:)];
     remote.identifier = @"remote"; self.settingsControls[@"remote"] = remote;
     [stack addArrangedSubview:remote];
-    NSTextField *note = [NSTextField wrappingLabelWithString:@"透明度仅调整外围背景；正文、图片与文字保持清晰。\n原生玻璃材质由系统调节，辅助功能设置优先生效。"];
+    NSTextField *note = [NSTextField wrappingLabelWithString:@"高透明度呈现清透玻璃与磨砂正文；文字、公式和图片保持清晰。\n原生玻璃材质由系统调节，辅助功能设置优先生效。"];
     note.textColor = NSColor.secondaryLabelColor; note.font = [NSFont systemFontOfSize:12];
     [stack addArrangedSubview:note];
     NSButton *reset = [NSButton buttonWithTitle:@"恢复当前预设颜色" target:self action:@selector(resetColors:)];
@@ -300,9 +371,13 @@ static NSString *hexColor(NSColor *value) {
 }
 - (void)resetColors:(id)sender { emit(@{@"settings": @{@"resetPalette": self.appearance[@"palette"]}}); }
 - (void)dispose {
+  if (self.titlebarEventMonitor) [NSEvent removeMonitor:self.titlebarEventMonitor];
+  self.titlebarEventMonitor = nil;
   [NSNotificationCenter.defaultCenter removeObserver:self];
   [NSWorkspace.sharedWorkspace.notificationCenter removeObserver:self];
   [self.panel close]; self.panel = nil;
+  [self.windowGlass removeFromSuperview]; self.windowGlass = nil;
+  [self.windowFrost removeFromSuperview]; self.windowFrost = nil;
   self.window.toolbar = nil; self.toolbar.delegate = nil; self.toolbar = nil;
   [self.controls removeAllObjects]; self.window = nil;
   [self.glassGroups removeAllObjects];
@@ -368,7 +443,9 @@ static napi_value diagnostics(napi_env env, napi_callback_info info) {
     [groups addObject:@{@"id": glass.identifier, @"style": glass.style == NSGlassEffectViewStyleClear ? @"clear" : @"regular", @"interactive": @(interactive)}];
   }
   for (NSString *key in @[@"accent", @"chrome", @"page", @"text"]) hex[key] = controller.settingsControls[[key stringByAppendingString:@"Hex"]].stringValue ?: @"";
-  return json(env, @{@"attached": @(controller.window.toolbar == controller.toolbar && controller != nil), @"controls": controls, @"glassGroups": groups, @"nativeChromeInsetTop": @([controller chromeInset]), @"settingsHex": hex, @"settingsClass": controller.panel ? NSStringFromClass(controller.panel.class) : @"", @"title": controller.window.title ?: @""});
+  return json(env, @{@"attached": @(controller.window.toolbar == controller.toolbar && controller != nil), @"controls": controls, @"glassGroups": groups,
+    @"windowBackdrop": @{@"attached": @(controller.windowGlass.superview != nil && controller.windowFrost.superview != nil), @"hidden": @(controller.windowGlass.hidden && controller.windowFrost.hidden), @"opaque": @(controller.window.opaque)},
+    @"nativeChromeInsetTop": @([controller chromeInset]), @"settingsHex": hex, @"settingsClass": controller.panel ? NSStringFromClass(controller.panel.class) : @"", @"title": controller.window.title ?: @""});
 }
 // Main-process test harness only; never exposed through the renderer bridge.
 static napi_value perform(napi_env env, napi_callback_info info) {

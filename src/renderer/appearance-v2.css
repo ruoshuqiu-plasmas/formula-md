@@ -23,7 +23,7 @@
 #settingsDialog [aria-invalid='true'] { outline: 2px solid #ba3348; }
 .glass-tab-lens-clip { display: none; }
 
-/* Native macOS glass: one backdrop, light edges, opaque document surfaces. */
+/* Shared native diffusion and clear glass supply the backdrop; web layers add thin tints. */
 :root[data-platform='darwin'][data-native-ui='true'] {
   --relief-raised: 0 2px 7px rgb(20 35 55 / 9%), inset 0 1px 0 var(--glass-edge);
   --relief-hover: 0 3px 10px rgb(20 35 55 / 12%), inset 0 1px 0 var(--glass-edge);
@@ -32,20 +32,48 @@
   --glass-shadow: 0 5px 18px rgb(20 35 55 / 12%), inset 0 1px 0 var(--glass-edge);
 }
 :root[data-platform='darwin'][data-native-ui='true'] .app-shell { padding-top: var(--native-chrome-inset-top, 0px); }
-:root[data-platform='darwin'][data-native-ui='true'] .document-area { box-shadow: 0 2px 10px rgb(10 20 40 / 8%); }
-:root[data-platform='darwin'][data-native-ui='true'] .document-area::after {
-  box-shadow: inset 0 1px 0 var(--glass-edge), inset 0 -1px 0 var(--glass-shade);
+:root[data-platform='darwin'][data-native-ui='true'] .app-shell::after {
+  position: absolute;
+  inset: 1px;
+  border-radius: 20px;
+  box-shadow: inset 0 1px 1px var(--glass-edge), inset 1px 0 1px var(--glass-edge), inset 0 -1px 1px var(--glass-line);
+  pointer-events: none;
+  content: '';
 }
-:root[data-platform='darwin'][data-native-ui='true'] .tab-bar { position: relative; isolation: isolate; }
+:root[data-platform='darwin'][data-native-ui='true'] .sidebar {
+  isolation: isolate;
+  margin: 10px 12px 10px 12px;
+  padding: 20px 12px 14px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--material-sheen), transparent 48%), var(--sidebar-material);
+  box-shadow: inset 0 1px 0 var(--glass-edge), inset 1px 0 0 var(--glass-edge), inset 0 -1px 0 var(--glass-line), 0 4px 16px rgb(10 25 50 / 6%);
+}
+:root[data-platform='darwin'][data-native-ui='true'] .brand { padding: 0 2px 20px; }
+:root[data-platform='darwin'][data-native-ui='true'] .brand-mark {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(140deg, var(--glass-light), var(--glass-fill));
+}
+:root[data-platform='darwin'][data-native-ui='true'] .tab-bar { height: 48px; padding-bottom: 8px; }
+:root[data-platform='darwin'][data-native-ui='true'] .tab-list { height: 40px; gap: 7px; }
+:root[data-platform='darwin'][data-native-ui='true'] .document-tab { height: 34px; border-radius: 12px; }
+:root[data-platform='darwin'][data-native-ui='true'] .document-area {
+  border-radius: 24px;
+  box-shadow: 0 8px 26px rgb(10 25 50 / 10%);
+}
+:root[data-platform='darwin'][data-native-ui='true'] .document-area::after {
+  box-shadow: inset 0 1px 1px var(--glass-edge), inset 1px 0 0 var(--glass-edge), inset 0 -1px 0 var(--glass-line);
+}
+:root[data-platform='darwin'][data-native-ui='true'] .tab-bar { position: relative; isolation: isolate; overflow: hidden; }
 :root[data-platform='darwin'][data-native-ui='true'] .tab-list { position: relative; z-index: 1; }
 :root[data-platform='darwin'][data-native-ui='true'] .glass-chrome-control {
-  --control-fill: transparent;
+  --control-fill: var(--glass-fill);
   --control-shadow: none;
 }
 :root[data-platform='darwin'][data-native-ui='true'] :is(.recent-item, .outline-item, .welcome-recent, .add-tab-button).glass-chrome-control {
   --control-fill: var(--glass-fill);
 }
-:root[data-platform='darwin'][data-native-ui='true'] :is(.recent-item, .outline-item).glass-chrome-control:not(:hover):not(.active) {
+:root[data-platform='darwin'][data-native-ui='true'] .outline-item.glass-chrome-control:not(:hover):not(.active) {
   --control-fill: transparent;
 }
 :root[data-platform='darwin'][data-native-ui='true'] .document-tab.active {
@@ -59,7 +87,7 @@
 :root[data-platform='darwin'][data-native-ui='true'] .glass-tracking .glass-reflection { opacity: 0.95; }
 :root[data-platform='darwin'][data-native-ui='true'] .glass-tracking .glass-caustic { opacity: 0.6; }
 :root[data-platform='darwin'][data-native-ui='true'] .glass-chrome-control .glass-surface::after { opacity: 0.75; }
-:root[data-platform='darwin'][data-native-ui='true'] :is(.recent-item, .outline-item).glass-chrome-control:not(:hover):not(.active) .glass-surface::after { opacity: 0; }
+:root[data-platform='darwin'][data-native-ui='true'] .outline-item.glass-chrome-control:not(:hover):not(.active) .glass-surface::after { opacity: 0; }
 :root[data-platform='darwin'][data-native-ui='true'] .glass-tab-lens-clip:not([hidden]) {
   position: absolute;
   display: block;
@@ -70,14 +98,42 @@
 .glass-tab-lens {
   position: absolute;
   inset: 0 auto auto 0;
-  border-radius: 11px;
+  border-radius: 12px;
   transform-origin: left center;
-  background: linear-gradient(125deg, var(--glass-light), transparent 50%, var(--glass-fill));
+  background: linear-gradient(115deg, var(--glass-light), var(--glass-fill) 42%, transparent 66%, var(--glass-light));
   box-shadow: inset 0 1px 0 var(--glass-edge), inset 0 -1px 0 var(--glass-line), 0 2px 6px var(--glass-shade);
 }
 :root[data-platform='darwin'][data-native-ui='true'][data-theme='dark'] .glass-tab-lens { background-color: var(--glass-fill); }
 :root[data-reduced-transparency='true'] .glass-tab-lens,
 :root[data-high-contrast='true'] .glass-tab-lens { background: var(--surface); outline: 1px solid var(--text-secondary); outline-offset: -1px; }
 :root[data-native-ui='true']:not(.glass-motion) .glass-surface { transition: none !important; transform: none !important; }
+
+/* The page and source share one tint, avoiding stacked opaque editor backgrounds. */
+.document-area { background: var(--page-material, var(--bg)); }
+.editor-panel, .source-editor-stage { background: transparent; }
+.line-number-gutter { background: color-mix(in srgb, var(--gutter-bg) 45%, transparent); }
+.preview-label, .editor-header { background: var(--page-material, var(--bg)); }
+.glass-ambient {
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  width: 380px;
+  height: 280px;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at 45% 45%, var(--glass-light), transparent 62%),
+    conic-gradient(from 110deg at 50% 50%, transparent 15%, var(--material-sheen) 30%, transparent 44%, var(--material-sheen) 70%, transparent 85%);
+  transition: transform 460ms cubic-bezier(0.16, 1, 0.3, 1), opacity 300ms ease;
+}
+.glass-flowing > .glass-ambient { opacity: 0.85; }
+:root[data-reduced-transparency='true'] .document-area,
+:root[data-high-contrast='true'] .document-area { background: var(--bg); }
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .document-area { background: var(--bg); }
+  .sidebar { background: var(--chrome-base) !important; }
+  .glass-ambient { display: none; }
+}
+:root:not(.glass-motion) .glass-ambient { display: none; transition: none; }
 .remote-setting { display: flex; align-items: center; gap: 9px; margin-top: 22px; font-size: 13px; }
 .settings-note { color: var(--text-secondary); font-size: 12px; line-height: 1.7; margin: 18px 0; }

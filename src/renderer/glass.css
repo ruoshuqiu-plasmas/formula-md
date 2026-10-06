@@ -58,7 +58,7 @@
 }
 
 .app-shell {
-  /* A single macOS vibrancy surface supplies the desktop colors underneath. */
+  /* Shared native materials supply the desktop colors underneath. */
   background: var(--chrome-tint);
 }
 
