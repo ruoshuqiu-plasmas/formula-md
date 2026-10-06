@@ -141,8 +141,16 @@ app.on('browser-window-created', (_event, window) => {
       await pointer('#documentGlassProbe', 'pointermove');
       await check('Document HTML cannot register as interactive chrome', "!document.querySelector('#documentGlassProbe .glass-surface') && !document.querySelector('.glass-tracking')");
       await run("document.querySelector('#documentGlassProbe').remove(); true");
-      await pointer('.document-tab.active', 'pointerdown'); await pause(100);
-      await check('Press deforms material without moving the hit target', "document.querySelector('.document-tab.active').classList.contains('glass-pressed') && getComputedStyle(document.querySelector('.document-tab.active .glass-surface')).transform !== 'none' && getComputedStyle(document.querySelector('.document-tab.active')).transform === 'none'");
+      const pressed = await run(`new Promise(resolve => requestAnimationFrame(() => {
+        const control = document.querySelector('.document-tab.active');
+        const rect = control.getBoundingClientRect();
+        control.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true,button:0,clientX:rect.x + rect.width / 2,clientY:rect.y + rect.height / 2}));
+        requestAnimationFrame(() => resolve(control.classList.contains('glass-pressed')
+          && Boolean(control.querySelector('.glass-surface').style.transform)
+          && getComputedStyle(control).transform === 'none'));
+      }))`);
+      assert.equal(pressed, true, 'Press deforms material without moving the hit target');
+      checks.push('Press deforms material without moving the hit target');
       await pointer('.document-tab.active', 'pointerup');
       await run("document.body.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:800,clientY:400})); true");
       const settled = "!document.querySelector('.glass-tracking,.glass-reflection,.glass-caustic,.glass-ambient,.glass-flowing') && [...document.querySelectorAll('.glass-surface')].every(surface=>!surface.style.transform && surface.getAnimations().length === 0)";
